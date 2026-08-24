@@ -196,13 +196,13 @@ fun HarmoniMainScreen(viewModel: MediaViewModel) {
     // Dynamic Acrylic Transparency
     val effectiveBgAlpha = (1f - bgTransparency).coerceIn(0f, 1f)
     val baseDark = Color(0xFF101014)
-    val baseLight = Color(0xFFF3F3F5)
+    val baseLight = Color(0xFFF4F4F6)
     val backgroundColor = if (isDarkMode) baseDark.copy(alpha = effectiveBgAlpha) else baseLight.copy(alpha = effectiveBgAlpha)
     val cardColor = Color.Transparent
-    val surfaceColor = if (isDarkMode) Color(0xFF1C1C22).copy(alpha = 0.92f) else Color(0xFFFBFBFC).copy(alpha = 0.92f)
-    val textPrimaryColor = if (isDarkMode) Color.White else Color(0xFF19191C)
-    val textSecondaryColor = if (isDarkMode) Color(0xFF9E9AA6) else Color(0xFF6B6774)
-    val dividerColor = if (isDarkMode) Color(0xFF383540).copy(alpha = 0.45f) else Color(0xFFDED9E6).copy(alpha = 0.45f)
+    val surfaceColor = if (isDarkMode) Color(0xFF1C1C22).copy(alpha = 0.94f) else Color(0xFFFFFFFF).copy(alpha = 0.96f)
+    val textPrimaryColor = if (isDarkMode) Color.White else Color(0xFF101014)
+    val textSecondaryColor = if (isDarkMode) Color(0xFF9E9AA6) else Color(0xFF4A4754)
+    val dividerColor = if (isDarkMode) Color(0xFF383540).copy(alpha = 0.45f) else Color(0xFFCBC6D6).copy(alpha = 0.55f)
     val iconColor = primaryColor
 
     val currentAppColors = AppColors(
@@ -241,7 +241,7 @@ fun HarmoniMainScreen(viewModel: MediaViewModel) {
             Box(modifier = Modifier.fillMaxSize()) {
                 // Windows 11 Fluent Bloom / Acrylic Wallpaper Canvas
                 Canvas(modifier = Modifier.fillMaxSize()) {
-                    drawRect(color = if (isDarkMode) Color(0xFF0C0B10) else Color(0xFFE8E8EE))
+                    drawRect(color = if (isDarkMode) Color(0xFF0C0B10) else Color(0xFFEAEAEE))
                     
                     // Acrylic Ambient Glow Blobs
                     drawCircle(
@@ -269,179 +269,77 @@ fun HarmoniMainScreen(viewModel: MediaViewModel) {
 
                 Scaffold(
                     containerColor = Color.Transparent,
-                    topBar = {
-                        if (!viewModel.isVideoLocked && !(activeScreen == "Video" && viewModel.isVideoFullscreen)) {
-                            // Windows 11 Top Title Bar
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .windowInsetsPadding(WindowInsets.statusBars)
-                                    .background(Color.Transparent)
-                                    .border(0.5.dp, DividerColor.copy(alpha = 0.25f))
-                                    .padding(horizontal = 14.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.clickable { onOpenDrawer() }
-                                ) {
-                                    WindowsFluentLogo(size = 18.dp)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "Windows Media Player",
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 13.sp,
-                                        color = TextPrimary
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(PrimaryGold.copy(alpha = 0.15f))
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    ) {
-                                        Text(
-                                            text = when (activeScreen) {
-                                                "Library" -> "Pustaka"
-                                                "Player" -> "Audio"
-                                                "Search" -> "Cari"
-                                                "Video" -> "Video"
-                                                "Playlist" -> "Playlist"
-                                                else -> activeScreen
-                                            },
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = PrimaryGold
-                                        )
-                                    }
-                                }
-
-                                // Windows Window Control Buttons (Minimize, Maximize, Settings/Close)
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    // Quick Theme Mode Toggle
-                                    IconButton(
-                                        onClick = { viewModel.toggleDarkMode() },
-                                        modifier = Modifier.size(28.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = if (isDarkMode) Icons.Default.LightMode else Icons.Default.DarkMode,
-                                            contentDescription = "Ganti Mode Gelap/Terang",
-                                            tint = TextPrimary.copy(alpha = 0.8f),
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-                                    // Windows Minimize Icon
-                                    IconButton(
-                                        onClick = {
-                                            if (activeScreen == "Player" || activeScreen == "Video") {
-                                                viewModel.activeScreen = "Library"
-                                            }
-                                        },
-                                        modifier = Modifier.size(28.dp)
-                                    ) {
-                                        Text("─", color = TextPrimary.copy(alpha = 0.85f), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                    // Windows Maximize Icon
-                                    IconButton(
-                                        onClick = {
-                                            if (currentTrack != null) {
-                                                viewModel.activeScreen = if (currentTrack!!.isVideo) "Video" else "Player"
-                                            }
-                                        },
-                                        modifier = Modifier.size(28.dp)
-                                    ) {
-                                        Text("□", color = TextPrimary.copy(alpha = 0.85f), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                    // Windows Settings / Menu Icon
-                                    IconButton(
-                                        onClick = onOpenDrawer,
-                                        modifier = Modifier.size(28.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.MoreHoriz,
-                                            contentDescription = "Pengaturan Windows",
-                                            tint = PrimaryGold,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    },
                     bottomBar = {
                         if (!viewModel.isVideoLocked && !(activeScreen == "Video" && viewModel.isVideoFullscreen)) {
-                            // Windows 11 Floating Taskbar Dock
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .windowInsetsPadding(WindowInsets.navigationBars)
-                                    .padding(horizontal = 16.dp, vertical = 6.dp),
-                                contentAlignment = Alignment.Center
+                            // Full-Width Edge-to-Edge Frosted Acrylic Navbar (Nempel Batas Pinggir)
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                color = if (isDarkMode) Color(0xFF131218).copy(alpha = (0.82f - bgTransparency * 0.5f).coerceAtLeast(0.20f))
+                                        else Color(0xFFFFFFFF).copy(alpha = (0.88f - bgTransparency * 0.5f).coerceAtLeast(0.30f)),
+                                tonalElevation = 0.dp,
+                                shadowElevation = 0.dp
                             ) {
-                                Row(
+                                Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(22.dp))
-                                        .background(
-                                            if (isDarkMode) Color(0xFF1E1E24).copy(alpha = (0.75f - bgTransparency * 0.45f).coerceAtLeast(0.18f))
-                                            else Color(0xFFFFFFFF).copy(alpha = (0.85f - bgTransparency * 0.45f).coerceAtLeast(0.22f))
-                                        )
-                                        .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(22.dp))
-                                        .padding(horizontal = 10.dp, vertical = 4.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                        .fillMaxWidth()
+                                        .border(0.5.dp, DividerColor.copy(alpha = 0.35f))
+                                        .windowInsetsPadding(WindowInsets.navigationBars)
+                                        .padding(vertical = 4.dp)
                                 ) {
-                                    val navItems = listOf(
-                                        Triple<String, ImageVector, String>("Library", Icons.Default.LibraryMusic, "Pustaka"),
-                                        Triple<String, ImageVector, String>("Player", Icons.Default.MusicNote, "Audio"),
-                                        Triple<String, ImageVector, String>("Search", Icons.Default.Search, "Cari"),
-                                        Triple<String, ImageVector, String>("Video", Icons.Default.Movie, "Video"),
-                                        Triple<String, ImageVector, String>("Playlist", Icons.Default.PlaylistPlay, "Playlist")
-                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceEvenly,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        val navItems = listOf(
+                                            Triple<String, ImageVector, String>("Library", Icons.Default.LibraryMusic, "Pustaka"),
+                                            Triple<String, ImageVector, String>("Player", Icons.Default.MusicNote, "Audio"),
+                                            Triple<String, ImageVector, String>("Search", Icons.Default.Search, "Cari"),
+                                            Triple<String, ImageVector, String>("Video", Icons.Default.Movie, "Video"),
+                                            Triple<String, ImageVector, String>("Playlist", Icons.Default.PlaylistPlay, "Playlist")
+                                        )
 
-                                    navItems.forEach { item ->
-                                        val route = item.first
-                                        val icon = item.second
-                                        val label = item.third
-                                        val isSelected = activeScreen == route
+                                        navItems.forEach { item ->
+                                            val route = item.first
+                                            val icon = item.second
+                                            val label = item.third
+                                            val isSelected = activeScreen == route
 
-                                        Column(
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.Center,
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(14.dp))
-                                                .background(if (isSelected) PrimaryGold.copy(alpha = 0.16f) else Color.Transparent)
-                                                .clickable { viewModel.activeScreen = route }
-                                                .padding(horizontal = 12.dp, vertical = 6.dp)
-                                                .testTag("nav_item_${route.lowercase()}")
-                                        ) {
-                                            Icon(
-                                                imageVector = icon,
-                                                contentDescription = label,
-                                                tint = if (isSelected) PrimaryGold else UnselectedWhite,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                            Spacer(modifier = Modifier.height(2.dp))
-                                            Text(
-                                                text = label,
-                                                fontSize = 10.sp,
-                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                color = if (isSelected) PrimaryGold else UnselectedWhite
-                                            )
-                                            // Windows 11 Active Indicator Pill
-                                            if (isSelected) {
-                                                Spacer(modifier = Modifier.height(2.dp))
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(width = 14.dp, height = 2.5.dp)
-                                                        .clip(RoundedCornerShape(2.dp))
-                                                        .background(PrimaryGold)
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.Center,
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .clip(RoundedCornerShape(12.dp))
+                                                    .background(if (isSelected) PrimaryGold.copy(alpha = 0.15f) else Color.Transparent)
+                                                    .clickable { viewModel.activeScreen = route }
+                                                    .padding(vertical = 6.dp)
+                                                    .testTag("nav_item_${route.lowercase()}")
+                                            ) {
+                                                Icon(
+                                                    imageVector = icon,
+                                                    contentDescription = label,
+                                                    tint = if (isSelected) PrimaryGold else TextPrimary.copy(alpha = 0.55f),
+                                                    modifier = Modifier.size(22.dp)
                                                 )
-                                            } else {
-                                                Spacer(modifier = Modifier.height(4.5.dp))
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Text(
+                                                    text = label,
+                                                    fontSize = 10.5.sp,
+                                                    fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
+                                                    color = if (isSelected) PrimaryGold else TextPrimary.copy(alpha = 0.65f)
+                                                )
+                                                if (isSelected) {
+                                                    Spacer(modifier = Modifier.height(2.dp))
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(width = 16.dp, height = 2.5.dp)
+                                                            .clip(RoundedCornerShape(2.dp))
+                                                            .background(PrimaryGold)
+                                                    )
+                                                } else {
+                                                    Spacer(modifier = Modifier.height(4.5.dp))
+                                                }
                                             }
                                         }
                                     }
@@ -617,17 +515,25 @@ fun StudioDrawerContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                WindowsFluentLogo(size = 28.dp)
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(PrimaryGold.copy(alpha = 0.18f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Tune, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(20.dp))
+                }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = "Windows Media Settings",
+                        text = "Pengaturan Media",
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 17.sp,
                         color = TextPrimary
                     )
                     Text(
-                        text = "Personalisasi & Kontrol Fluent",
+                        text = "Personalisasi & Kontrol",
                         fontSize = 11.sp,
                         color = UnselectedWhite
                     )
@@ -640,7 +546,7 @@ fun StudioDrawerContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // SECTION 1: PERSONALISASI TEMA & WARNA AKSEN WINDOWS
+        // SECTION 1: PERSONALISASI TEMA & WARNA AKSEN
         val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
         val selectedThemeId by viewModel.selectedThemeId.collectAsStateWithLifecycle()
         val bgTransparency by viewModel.backgroundTransparency.collectAsStateWithLifecycle()
@@ -651,7 +557,7 @@ fun StudioDrawerContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "WARNA AKSEN WINDOWS",
+                text = "WARNA AKSEN TEMA",
                 fontWeight = FontWeight.Bold,
                 fontSize = 11.sp,
                 color = PrimaryGold,
@@ -1046,21 +952,23 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
         val target = trackToDelete!!
         AlertDialog(
             onDismissRequest = { trackToDelete = null },
-            containerColor = DarkBackground,
+            containerColor = CardBackground,
             icon = {
                 Box(
                     modifier = Modifier
                         .size(48.dp)
-                        .background(Color(0xFFFF5252).copy(alpha = 0.2f), CircleShape),
+                        .clip(CircleShape)
+                        .background(Color.Transparent)
+                        .border(1.5.dp, PrimaryGold, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFFF5252), modifier = Modifier.size(26.dp))
+                    Icon(Icons.Default.Delete, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(24.dp))
                 }
             },
             title = {
                 Text(
                     text = "Hapus Berkas dari Pustaka?",
-                    color = Color.White,
+                    color = TextPrimary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
                     textAlign = TextAlign.Center
@@ -1080,14 +988,15 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                         viewModel.deleteTrack(target)
                         trackToDelete = null
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5252))
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryGold),
+                    shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("Hapus", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("Hapus", color = DarkBackground, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { trackToDelete = null }) {
-                    Text("Batal", color = Color.White)
+                    Text("Batal", color = TextPrimary)
                 }
             }
         )
@@ -1733,7 +1642,7 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                     Text("NOERAE PLAYER", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = PrimaryGold, letterSpacing = 2.sp)
                     Box {
                         IconButton(onClick = { showMenuDropdown = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "Pilihan Menu", tint = Color.White)
+                            Icon(Icons.Default.MoreVert, contentDescription = "Pilihan Menu", tint = TextPrimary)
                         }
                         DropdownMenu(
                             expanded = showMenuDropdown,
@@ -1741,7 +1650,7 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                             modifier = Modifier.background(CardBackground)
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Edit Tag Musik (MP3 Info)", color = Color.White, fontSize = 13.sp) },
+                                text = { Text("Edit Tag Musik (MP3 Info)", color = TextPrimary, fontSize = 13.sp) },
                                 onClick = {
                                     showMenuDropdown = false
                                     showEditorDrawer = true
@@ -1749,7 +1658,7 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
                             )
                             DropdownMenuItem(
-                                text = { Text("Equaliser Studio 5-Band", color = Color.White, fontSize = 13.sp) },
+                                text = { Text("Equaliser Studio 5-Band", color = TextPrimary, fontSize = 13.sp) },
                                 onClick = {
                                     showMenuDropdown = false
                                     showEqualizerDialog = true
@@ -1757,7 +1666,7 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 leadingIcon = { Icon(Icons.Default.Album, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
                             )
                             DropdownMenuItem(
-                                text = { Text("Kecepatan Tempo (Speed)", color = Color.White, fontSize = 13.sp) },
+                                text = { Text("Kecepatan Tempo (Speed)", color = TextPrimary, fontSize = 13.sp) },
                                 onClick = {
                                     showMenuDropdown = false
                                     showSpeedDialog = true
@@ -1765,7 +1674,7 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 leadingIcon = { Icon(Icons.Default.Speed, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
                             )
                             DropdownMenuItem(
-                                text = { Text("Gaya & Warna Spektrum", color = Color.White, fontSize = 13.sp) },
+                                text = { Text("Gaya & Warna Spektrum", color = TextPrimary, fontSize = 13.sp) },
                                 onClick = {
                                     showMenuDropdown = false
                                     showSpectrumDialog = true
@@ -1773,7 +1682,7 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 leadingIcon = { Icon(Icons.Default.Palette, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
                             )
                             DropdownMenuItem(
-                                text = { Text("Pengulangan Segmen A-B", color = Color.White, fontSize = 13.sp) },
+                                text = { Text("Pengulangan Segmen A-B", color = TextPrimary, fontSize = 13.sp) },
                                 onClick = {
                                     showMenuDropdown = false
                                     showAbRepeatDialog = true
@@ -1781,7 +1690,7 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 leadingIcon = { Icon(Icons.Default.Sync, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
                             )
                             DropdownMenuItem(
-                                text = { Text("Tambahkan ke Playlist", color = Color.White, fontSize = 13.sp) },
+                                text = { Text("Tambahkan ke Playlist", color = TextPrimary, fontSize = 13.sp) },
                                 onClick = {
                                     showMenuDropdown = false
                                     viewModel.trackToAddToPlaylist = track
@@ -1817,7 +1726,7 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                         ) {
                             Text(
                                 text = if (tab == "Karaoke") "Lirik Karaoke" else "Spektrum Musik",
-                                color = if (isSelected) DarkBackground else Color.White,
+                                color = if (isSelected) Color(0xFF101014) else TextPrimary.copy(alpha = 0.75f),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp
                             )
@@ -1845,7 +1754,7 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                             text = track.title,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color.White,
+                            color = TextPrimary,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(horizontal = 8.dp)
                         )
@@ -1901,7 +1810,7 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                     ) {
                                         itemsIndexed(lyricsLines) { index, line ->
                                             val isActive = index == activeLyricIndex
-                                            val textColor = if (isActive) PrimaryGold else Color.White.copy(alpha = 0.45f)
+                                            val textColor = if (isActive) PrimaryGold else TextPrimary.copy(alpha = 0.5f)
                                             val textWeight = if (isActive) FontWeight.ExtraBold else FontWeight.Normal
 
                                             Text(
@@ -1932,7 +1841,7 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                             text = track.title,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color.White,
+                            color = TextPrimary,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(horizontal = 8.dp)
                         )
@@ -2045,35 +1954,36 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                         Icon(
                             imageVector = Icons.Default.Shuffle,
                             contentDescription = "Acak",
-                            tint = if (isShuffle) AccentTeal else Color.White
+                            tint = if (isShuffle) AccentTeal else TextPrimary.copy(alpha = 0.85f)
                         )
                     }
 
                     // Skip previous icon
                     IconButton(onClick = { viewModel.playPreviousTrack() }) {
-                        Icon(Icons.Default.SkipPrevious, contentDescription = "Sebelumnya", tint = Color.White, modifier = Modifier.size(34.dp))
+                        Icon(Icons.Default.SkipPrevious, contentDescription = "Sebelumnya", tint = TextPrimary, modifier = Modifier.size(34.dp))
                     }
 
-                    // Play/Pause circular container - centered in the middle!
+                    // Play/Pause circular container (Distinct Gold with Dark Icon)
                     Box(
                         modifier = Modifier
                             .size(54.dp)
                             .clip(CircleShape)
-                            .background(PrimaryGold)
+                            .background(Color(0xFFFFB300))
+                            .border(1.5.dp, Color(0xFFFFD54F), CircleShape)
                             .clickable { viewModel.togglePlayPause() },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                             contentDescription = "Mainkan/Jeda",
-                            tint = DarkBackground,
-                            modifier = Modifier.size(28.dp)
+                            tint = Color(0xFF101014),
+                            modifier = Modifier.size(30.dp)
                         )
                     }
 
                     // Skip next icon
                     IconButton(onClick = { viewModel.playNextTrack() }) {
-                        Icon(Icons.Default.SkipNext, contentDescription = "Selanjutnya", tint = Color.White, modifier = Modifier.size(34.dp))
+                        Icon(Icons.Default.SkipNext, contentDescription = "Selanjutnya", tint = TextPrimary, modifier = Modifier.size(34.dp))
                     }
 
                     // Standard Repeat Mode button (glow for loop-all, text '1' for repeat-one)
@@ -3318,29 +3228,15 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
+                        IconButton(
+                            onClick = { viewModel.isVideoLocked = false },
                             modifier = Modifier
-                                .background(Color.Transparent)
-                                .padding(24.dp)
+                                .size(68.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFE53935))
+                                .border(2.dp, Color.White, CircleShape)
                         ) {
-                            IconButton(
-                                onClick = { viewModel.isVideoLocked = false },
-                                modifier = Modifier
-                                    .background(PrimaryGold, CircleShape)
-                                    .size(68.dp)
-                            ) {
-                                Icon(Icons.Default.Lock, contentDescription = "Buka Kunci Layar", tint = DarkBackground, modifier = Modifier.size(36.dp))
-                            }
-                            Spacer(modifier = Modifier.height(14.dp))
-                            Text("Layar Terkunci", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                "Ketuk gembok untuk membuka kunci\n(Ketuk 2x pada layar untuk memunculkan kembali)",
-                                color = UnselectedWhite,
-                                fontSize = 11.sp,
-                                textAlign = TextAlign.Center
-                            )
+                            Icon(Icons.Default.Lock, contentDescription = "Buka Kunci Layar", tint = Color.White, modifier = Modifier.size(34.dp))
                         }
                     }
                 }
@@ -3427,7 +3323,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                             }
                         }
 
-                        // ROW 2: Bar Baru di Bawah Nama File (Volume, Acak, Rotasi, Kecepatan, Kunci)
+                        // ROW 2: Bar Baru di Bawah Nama File (Volume, Acak, Rotasi, Kecepatan/Select, Kunci)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -3501,7 +3397,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 )
                             }
 
-                            // 4. Icon Kecepatan Putar (Preset & Granular Slider Dialog)
+                            // 4. Icon Kecepatan Putar / Select Preset (Distinct Cyan/Teal Badge)
                             IconButton(
                                 onClick = {
                                     interactionTick++
@@ -3512,42 +3408,40 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier
-                                        .background(
-                                            if (videoPlaybackSpeed != 1.0f) AccentTeal.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.12f),
-                                            RoundedCornerShape(8.dp)
-                                        )
-                                        .border(
-                                            1.dp,
-                                            if (videoPlaybackSpeed != 1.0f) AccentTeal else DividerColor.copy(alpha = 0.5f),
-                                            RoundedCornerShape(8.dp)
-                                        )
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(AccentTeal.copy(alpha = 0.22f))
+                                        .border(1.2.dp, AccentTeal, RoundedCornerShape(8.dp))
                                         .padding(horizontal = 5.dp, vertical = 3.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Speed,
                                         contentDescription = "Kecepatan Video",
-                                        tint = if (videoPlaybackSpeed != 1.0f) AccentTeal else Color.White,
+                                        tint = AccentTeal,
                                         modifier = Modifier.size(13.dp)
                                     )
                                     Spacer(modifier = Modifier.width(2.dp))
                                     Text(
                                         text = if (videoPlaybackSpeed == 1.0f) "1x" else "${videoPlaybackSpeed}x",
-                                        color = if (videoPlaybackSpeed != 1.0f) AccentTeal else Color.White,
+                                        color = AccentTeal,
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
                             }
 
-                            // 5. Icon Kunci Layar
+                            // 5. Icon Kunci Layar (Distinct Red Badge)
                             IconButton(
                                 onClick = {
                                     interactionTick++
                                     viewModel.isVideoLocked = true
                                 },
-                                modifier = Modifier.size(36.dp)
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFFE53935).copy(alpha = 0.22f))
+                                    .border(1.2.dp, Color(0xFFE53935), RoundedCornerShape(8.dp))
                             ) {
-                                Icon(Icons.Default.LockOpen, contentDescription = "Kunci Layar", tint = Color.White, modifier = Modifier.size(20.dp))
+                                Icon(Icons.Default.LockOpen, contentDescription = "Kunci Layar", tint = Color(0xFFE53935), modifier = Modifier.size(20.dp))
                             }
                         }
 
@@ -3712,12 +3606,13 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 Icon(Icons.Default.SkipPrevious, contentDescription = "Video Sebelumnya", tint = Color.White, modifier = Modifier.size(28.dp))
                             }
 
-                            // Play / Pause Circular Center Button
+                            // Play / Pause Circular Center Button (Distinct High-Contrast Gold Fill)
                             Box(
                                 modifier = Modifier
-                                    .size(46.dp)
+                                    .size(48.dp)
                                     .clip(CircleShape)
-                                    .background(PrimaryGold)
+                                    .background(Color(0xFFFFB300))
+                                    .border(1.5.dp, Color(0xFFFFD54F), CircleShape)
                                     .clickable {
                                         interactionTick++
                                         viewModel.toggleVideoPlayPause()
@@ -3727,7 +3622,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 Icon(
                                     imageVector = if (isVideoPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                                     contentDescription = "Main/Jeda",
-                                    tint = DarkBackground,
+                                    tint = Color(0xFF101014),
                                     modifier = Modifier.size(28.dp)
                                 )
                             }
