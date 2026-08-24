@@ -8,7 +8,10 @@ import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Shader
 import android.media.MediaPlayer
+import android.media.audiofx.BassBoost
 import android.media.audiofx.Equalizer
+import android.media.audiofx.PresetReverb
+import android.media.audiofx.Virtualizer
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -37,6 +40,9 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: MediaRepository
     private var mediaPlayer: MediaPlayer? = null
     private var nativeEq: Equalizer? = null
+    private var nativeBassBoost: BassBoost? = null
+    private var nativeVirtualizer: Virtualizer? = null
+    private var nativeReverb: PresetReverb? = null
 
     // UI Navigation State
     var activeScreen by mutableStateOf("Library")
@@ -97,11 +103,11 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
         _customSecondaryColor.value = null
         _customTextColor.value = null
         _customIconColor.value = null
-        _backgroundTransparency.value = 0f
+        _backgroundTransparency.value = 1.0f
     }
 
-    // Background Transparency Setting (0f = opaque solid, 1f = fully transparent glass)
-    private val _backgroundTransparency = MutableStateFlow(0f)
+    // Background Transparency Setting (0f = opaque solid, 1f = fully transparent glass, default 100% / 1.0f)
+    private val _backgroundTransparency = MutableStateFlow(1.0f)
     val backgroundTransparency: StateFlow<Float> = _backgroundTransparency.asStateFlow()
 
     fun setBackgroundTransparency(transparency: Float) {
@@ -183,11 +189,33 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
     val playbackSpeed: StateFlow<Float> = _playbackSpeed.asStateFlow()
 
     // Equalizer State
+    private val _isEqualizerEnabled = MutableStateFlow(true)
+    val isEqualizerEnabled: StateFlow<Boolean> = _isEqualizerEnabled.asStateFlow()
+
     private val _equalizerBands = MutableStateFlow(listOf(0f, 0f, 0f, 0f, 0f)) // 60Hz, 230Hz, 910Hz, 4kHz, 14kHz
     val equalizerBands: StateFlow<List<Float>> = _equalizerBands.asStateFlow()
 
     private val _selectedPresetName = MutableStateFlow("Normal")
     val selectedPresetName: StateFlow<String> = _selectedPresetName.asStateFlow()
+
+    // Audio DSP Effects State (Reverb, Pitch, Super Bass, 3D Audio, L-R Audio Balance)
+    private val _isEffectsEnabled = MutableStateFlow(true)
+    val isEffectsEnabled: StateFlow<Boolean> = _isEffectsEnabled.asStateFlow()
+
+    private val _reverbPreset = MutableStateFlow("Sedang") // Mati, Kecil, Sedang, Aula, Plate
+    val reverbPreset: StateFlow<String> = _reverbPreset.asStateFlow()
+
+    private val _pitchSemiTones = MutableStateFlow(0f) // -6f to +6f semitones
+    val pitchSemiTones: StateFlow<Float> = _pitchSemiTones.asStateFlow()
+
+    private val _superBassStrength = MutableStateFlow(0.4f) // 0.0f to 1.0f
+    val superBassStrength: StateFlow<Float> = _superBassStrength.asStateFlow()
+
+    private val _virtualizer3DStrength = MutableStateFlow(0.4f) // 0.0f to 1.0f
+    val virtualizer3DStrength: StateFlow<Float> = _virtualizer3DStrength.asStateFlow()
+
+    private val _lrAudioBalance = MutableStateFlow(0.0f) // -1.0f (Full Left) to +1.0f (Full Right), 0.0f Center
+    val lrAudioBalance: StateFlow<Float> = _lrAudioBalance.asStateFlow()
 
     // AB Repeat State
     private val _abRepeatActive = MutableStateFlow(false)
@@ -217,8 +245,16 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setVolume(vol: Float) {
         _volume.value = vol.coerceIn(0f, 1f)
+        applyVolumeAndBalance()
+    }
+
+    private fun applyVolumeAndBalance() {
         try {
-            mediaPlayer?.setVolume(_volume.value, _volume.value)
+            val baseVol = _volume.value
+            val bal = _lrAudioBalance.value
+            val left = if (bal <= 0f) baseVol else (baseVol * (1f - bal)).coerceIn(0f, 1f)
+            val right = if (bal >= 0f) baseVol else (baseVol * (1f + bal)).coerceIn(0f, 1f)
+            mediaPlayer?.setVolume(left, right)
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -385,7 +421,7 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
 
         mediaPlayer = MediaPlayer().apply {
             try {
-                setVolume(_volume.value, _volume.value)
+                applyVolumeAndBalance()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -400,10 +436,11 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
                 prepareAsync()
                 setOnPreparedListener { mp ->
                     mp.start()
-                    // Set current speed
+                    // Set current speed & pitch
                     setTempo(_playbackSpeed.value)
+                    applyPitch()
                     _isPlaying.value = true
-                    setupNativeEqualizer(mp.audioSessionId)
+                    setupNativeAudioEffects(mp.audioSessionId)
                     startProgressTracker()
                 }
                 setOnCompletionListener { mp ->
@@ -939,17 +976,158 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Equalizer Controls
-    private fun setupNativeEqualizer(audioSessionId: Int) {
+    // Equalizer & DSP Effects Controls
+    fun setEqualizerEnabled(enabled: Boolean) {
+        _isEqualizerEnabled.value = enabled
+        try {
+            nativeEq?.enabled = enabled
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun setEffectsEnabled(enabled: Boolean) {
+        _isEffectsEnabled.value = enabled
+        try {
+            nativeBassBoost?.enabled = enabled
+            nativeVirtualizer?.enabled = enabled
+            nativeReverb?.enabled = enabled && _reverbPreset.value != "Mati"
+            applyPitch()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun setReverbPreset(preset: String) {
+        _reverbPreset.value = preset
+        try {
+            nativeReverb?.let { reverb ->
+                reverb.enabled = _isEffectsEnabled.value && preset != "Mati"
+                applyReverbPresetInternal(reverb, preset)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun applyReverbPresetInternal(reverb: PresetReverb, preset: String) {
+        try {
+            when (preset) {
+                "Kecil" -> reverb.preset = PresetReverb.PRESET_SMALLROOM
+                "Sedang" -> reverb.preset = PresetReverb.PRESET_MEDIUMROOM
+                "Aula" -> reverb.preset = PresetReverb.PRESET_LARGEROOM
+                "Plate" -> reverb.preset = PresetReverb.PRESET_PLATE
+                else -> reverb.preset = PresetReverb.PRESET_NONE
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun setPitchSemiTones(semitones: Float) {
+        _pitchSemiTones.value = semitones.coerceIn(-6f, 6f)
+        applyPitch()
+    }
+
+    private fun applyPitch() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                mediaPlayer?.let { mp ->
+                    val params = mp.playbackParams
+                    val factor = if (_isEffectsEnabled.value) {
+                        Math.pow(2.0, (_pitchSemiTones.value / 12.0).toDouble()).toFloat()
+                    } else 1.0f
+                    params.pitch = factor.coerceIn(0.5f, 2.0f)
+                    mp.playbackParams = params
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun setSuperBassStrength(strength: Float) {
+        _superBassStrength.value = strength.coerceIn(0f, 1f)
+        try {
+            nativeBassBoost?.let { bb ->
+                bb.enabled = _isEffectsEnabled.value
+                val mB = (_superBassStrength.value * 1000).toInt().toShort()
+                bb.setStrength(mB)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun setVirtualizer3DStrength(strength: Float) {
+        _virtualizer3DStrength.value = strength.coerceIn(0f, 1f)
+        try {
+            nativeVirtualizer?.let { virt ->
+                virt.enabled = _isEffectsEnabled.value
+                val mB = (_virtualizer3DStrength.value * 1000).toInt().toShort()
+                virt.setStrength(mB)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun setLrAudioBalance(balance: Float) {
+        _lrAudioBalance.value = balance.coerceIn(-1.0f, 1.0f)
+        applyVolumeAndBalance()
+    }
+
+    private fun setupNativeAudioEffects(audioSessionId: Int) {
         try {
             if (audioSessionId != 0) {
-                nativeEq = Equalizer(0, audioSessionId).apply {
-                    enabled = true
+                // Native Equalizer
+                try {
+                    nativeEq?.release()
+                    nativeEq = Equalizer(0, audioSessionId).apply {
+                        enabled = _isEqualizerEnabled.value
+                    }
+                    _equalizerBands.value.forEachIndexed { index, gainDb ->
+                        setNativeBandLevel(index, gainDb)
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 }
-                // Apply our band configurations to the true system audio fx
-                _equalizerBands.value.forEachIndexed { index, gainDb ->
-                    setNativeBandLevel(index, gainDb)
+
+                // Native Bass Boost
+                try {
+                    nativeBassBoost?.release()
+                    nativeBassBoost = BassBoost(0, audioSessionId).apply {
+                        enabled = _isEffectsEnabled.value
+                        setStrength((_superBassStrength.value * 1000).toInt().toShort())
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 }
+
+                // Native 3D Virtualizer
+                try {
+                    nativeVirtualizer?.release()
+                    nativeVirtualizer = Virtualizer(0, audioSessionId).apply {
+                        enabled = _isEffectsEnabled.value
+                        setStrength((_virtualizer3DStrength.value * 1000).toInt().toShort())
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+
+                // Native Reverb
+                try {
+                    nativeReverb?.release()
+                    nativeReverb = PresetReverb(0, audioSessionId).apply {
+                        enabled = _isEffectsEnabled.value && _reverbPreset.value != "Mati"
+                        applyReverbPresetInternal(this, _reverbPreset.value)
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+
+                applyPitch()
+                applyVolumeAndBalance()
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -1044,6 +1222,21 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
         }
         try {
             nativeEq?.release()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        try {
+            nativeBassBoost?.release()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        try {
+            nativeVirtualizer?.release()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        try {
+            nativeReverb?.release()
         } catch (e: Exception) {
             e.printStackTrace()
         }

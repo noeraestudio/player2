@@ -143,6 +143,9 @@ val TextPrimary: Color
 val IsDarkTheme: Boolean
     @Composable get() = LocalAppColors.current.isDark
 
+val HeaderBackground: Color
+    @Composable get() = LocalAppColors.current.surface
+
 @Composable
 fun WindowsFluentLogo(modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 18.dp) {
     // Windows 11 Style 4-tiles Logo
@@ -207,7 +210,8 @@ fun HarmoniMainScreen(viewModel: MediaViewModel) {
     val glassCardAlpha = if (bgTransparency <= 0f) 1f else (1f - bgTransparency * 0.35f).coerceIn(0.65f, 1f)
     val backgroundColor = if (isDarkMode) baseDark else baseLight
     val cardColor = if (isDarkMode) cardDark.copy(alpha = glassCardAlpha) else cardLight.copy(alpha = glassCardAlpha)
-    val surfaceColor = if (isDarkMode) Color(0xFF18171E) else Color(0xFFFFFFFF)
+    val navAlpha = if (bgTransparency <= 0f) 1f else (1f - bgTransparency * 0.30f).coerceIn(0.70f, 1f)
+    val surfaceColor = if (isDarkMode) Color(0xFF131218).copy(alpha = navAlpha) else Color(0xFFFFFFFF).copy(alpha = navAlpha)
     val textPrimaryColor = if (isDarkMode) Color(0xFFFFFFFF) else Color(0xFF121118)
     val textSecondaryColor = if (isDarkMode) Color(0xFFA09CA8) else Color(0xFF555260)
     val dividerColor = if (isDarkMode) Color(0xFF423E4C).copy(alpha = 0.5f) else Color(0xFFBFB9C9).copy(alpha = 0.6f)
@@ -516,18 +520,82 @@ fun HarmoniMainScreen(viewModel: MediaViewModel) {
 }
 }
 
-// --- HAMBURGER SLIDER DRAWER CONTENT ---
+// --- CUSTOM CIRCULAR THUMB & SLENDER TRACK SLIDER ---
+@Composable
+fun RoundSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+    valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
+    steps: Int = 0,
+    enabled: Boolean = true,
+    activeColor: Color = PrimaryGold,
+    inactiveColor: Color = DividerColor.copy(alpha = 0.45f),
+    thumbSize: androidx.compose.ui.unit.Dp = 14.dp,
+    trackHeight: androidx.compose.ui.unit.Dp = 3.dp
+) {
+    Slider(
+        value = value,
+        onValueChange = onValueChange,
+        valueRange = valueRange,
+        steps = steps,
+        enabled = enabled,
+        modifier = modifier,
+        thumb = {
+            Box(
+                modifier = Modifier
+                    .size(thumbSize)
+                    .clip(CircleShape)
+                    .background(if (enabled) activeColor else inactiveColor)
+                    .border(1.5.dp, if (IsDarkTheme) Color.White.copy(alpha = 0.9f) else Color(0xFF101014), CircleShape)
+            )
+        },
+        track = { sliderState ->
+            SliderDefaults.Track(
+                sliderState = sliderState,
+                modifier = Modifier.height(trackHeight),
+                colors = SliderDefaults.colors(
+                    activeTrackColor = if (enabled) activeColor else inactiveColor.copy(alpha = 0.5f),
+                    inactiveTrackColor = inactiveColor
+                )
+            )
+        }
+    )
+}
+
+// --- HAMBURGER SLIDER DRAWER CONTENT (EXPANDABLE ACCORDION MENUS) ---
 @Composable
 fun StudioDrawerContent(
     viewModel: MediaViewModel,
     onClose: () -> Unit
 ) {
+    val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
+    val selectedThemeId by viewModel.selectedThemeId.collectAsStateWithLifecycle()
+    val bgTransparency by viewModel.backgroundTransparency.collectAsStateWithLifecycle()
+
+    val isEffectsEnabled by viewModel.isEffectsEnabled.collectAsStateWithLifecycle()
+    val reverbPreset by viewModel.reverbPreset.collectAsStateWithLifecycle()
+    val pitchSemiTones by viewModel.pitchSemiTones.collectAsStateWithLifecycle()
+    val superBassStrength by viewModel.superBassStrength.collectAsStateWithLifecycle()
+    val virtualizer3DStrength by viewModel.virtualizer3DStrength.collectAsStateWithLifecycle()
+    val lrAudioBalance by viewModel.lrAudioBalance.collectAsStateWithLifecycle()
+
+    val isEqualizerEnabled by viewModel.isEqualizerEnabled.collectAsStateWithLifecycle()
+    val equalizerBands by viewModel.equalizerBands.collectAsStateWithLifecycle()
+    val selectedPresetName by viewModel.selectedPresetName.collectAsStateWithLifecycle()
+
     val volume by viewModel.volume.collectAsStateWithLifecycle()
     val videoVolume by viewModel.videoVolume.collectAsStateWithLifecycle()
     val sleepTimerMinutes by viewModel.sleepTimerMinutes.collectAsStateWithLifecycle()
     val sleepTimerRemaining by viewModel.sleepTimerRemainingSeconds.collectAsStateWithLifecycle()
-    val selectedPresetName by viewModel.selectedPresetName.collectAsStateWithLifecycle()
     val allTracks by viewModel.allTracks.collectAsStateWithLifecycle()
+
+    // Accordion expand/collapse states
+    var isThemeExpanded by remember { mutableStateOf(false) }
+    var isEffectsExpanded by remember { mutableStateOf(true) }
+    var isEqualizerExpanded by remember { mutableStateOf(true) }
+    var isVolumeExpanded by remember { mutableStateOf(false) }
+    var isSleepTimerExpanded by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -535,9 +603,9 @@ fun StudioDrawerContent(
             .fillMaxWidth()
             .background(DarkBackground)
             .verticalScroll(rememberScrollState())
-            .padding(20.dp)
+            .padding(16.dp)
     ) {
-        // Header
+        // Drawer Header
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -553,16 +621,16 @@ fun StudioDrawerContent(
                 ) {
                     Icon(Icons.Default.Tune, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(20.dp))
                 }
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(10.dp))
                 Column {
                     Text(
                         text = "Pengaturan Media",
                         fontWeight = FontWeight.ExtraBold,
-                        fontSize = 17.sp,
+                        fontSize = 16.sp,
                         color = TextPrimary
                     )
                     Text(
-                        text = "Personalisasi & Kontrol",
+                        text = "Studio DSP & Personalisasi",
                         fontSize = 11.sp,
                         color = UnselectedWhite
                     )
@@ -573,109 +641,633 @@ fun StudioDrawerContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
-        // SECTION 1: PERSONALISASI TEMA & WARNA AKSEN
-        val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
-        val selectedThemeId by viewModel.selectedThemeId.collectAsStateWithLifecycle()
-        val bgTransparency by viewModel.backgroundTransparency.collectAsStateWithLifecycle()
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        // ================== DROPDOWN 1: TEMA & TAMPILAN ==================
+        Card(
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = CardBackground),
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, DividerColor.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
         ) {
-            Text(
-                text = "WARNA AKSEN TEMA",
-                fontWeight = FontWeight.Bold,
-                fontSize = 11.sp,
-                color = PrimaryGold,
-                letterSpacing = 1.sp
-            )
-            // Dark / Light Fluent Mode Toggle
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(DividerColor.copy(alpha = 0.4f))
-                    .clickable { viewModel.toggleDarkMode() }
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = if (isDarkMode) Icons.Default.DarkMode else Icons.Default.LightMode,
-                    contentDescription = null,
-                    tint = PrimaryGold,
-                    modifier = Modifier.size(14.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = if (isDarkMode) "Dark Fluent" else "Light Fluent",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Color Accent Swatches Grid
-        val themePalettes = listOf(
-            Triple("Blue", "Windows Blue", Color(0xFF0078D7)),
-            Triple("Gold", "Windows Gold", Color(0xFFFFB900)),
-            Triple("Teal", "Mica Cyan", Color(0xFF00B7C3)),
-            Triple("Purple", "Cyber Purple", Color(0xFF881798)),
-            Triple("Emerald", "Xbox Green", Color(0xFF107C41)),
-            Triple("Crimson", "Crimson Red", Color(0xFFE81123)),
-            Triple("Orange", "Solar Orange", Color(0xFFF7630C)),
-            Triple("Silver", "Platinum", Color(0xFFE1DFDD))
-        )
-
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            themePalettes.chunked(4).forEach { rowItems ->
+            Column(modifier = Modifier.padding(12.dp)) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { isThemeExpanded = !isThemeExpanded }
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    rowItems.forEach { (themeId, label, color) ->
-                        val isSelected = selectedThemeId == themeId || (selectedThemeId == "Windows $themeId")
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (isSelected) color.copy(alpha = 0.22f) else CardBackground)
-                                .border(
-                                    1.5.dp,
-                                    if (isSelected) color else DividerColor.copy(alpha = 0.4f),
-                                    RoundedCornerShape(10.dp)
-                                )
-                                .clickable { viewModel.setTheme(themeId) }
-                                .padding(vertical = 8.dp, horizontal = 4.dp)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Palette, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Tema & Transparansi",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = TextPrimary
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "${(bgTransparency * 100).toInt()}% Glass",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = PrimaryGold
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = if (isThemeExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            tint = UnselectedWhite,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                AnimatedVisibility(visible = isThemeExpanded) {
+                    Column(modifier = Modifier.padding(top = 10.dp)) {
+                        // Dark / Light Fluent Mode Toggle
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(
+                            Text("Mode Tampilan", fontSize = 12.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
+                            Row(
                                 modifier = Modifier
-                                    .size(20.dp)
-                                    .clip(CircleShape)
-                                    .background(color)
-                                    .border(1.dp, Color.White.copy(alpha = 0.6f), CircleShape),
-                                contentAlignment = Alignment.Center
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(DividerColor.copy(alpha = 0.4f))
+                                    .clickable { viewModel.toggleDarkMode() }
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                if (isSelected) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = null,
-                                        tint = if (color == Color(0xFFE1DFDD) || color == Color(0xFFFFB900)) Color.Black else Color.White,
-                                        modifier = Modifier.size(13.dp)
+                                Icon(
+                                    imageVector = if (isDarkMode) Icons.Default.DarkMode else Icons.Default.LightMode,
+                                    contentDescription = null,
+                                    tint = PrimaryGold,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (isDarkMode) "Gelap" else "Terang",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Theme Color Accent Swatches Grid
+                        Text("Pilihan Warna", fontSize = 11.sp, color = UnselectedWhite, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        val themePalettes = listOf(
+                            Triple("Gold", "Gold", Color(0xFFFFB900)),
+                            Triple("Blue", "Blue", Color(0xFF0078D7)),
+                            Triple("Teal", "Teal", Color(0xFF00B7C3)),
+                            Triple("Purple", "Purple", Color(0xFF881798)),
+                            Triple("Emerald", "Green", Color(0xFF107C41)),
+                            Triple("Crimson", "Red", Color(0xFFE81123)),
+                            Triple("Orange", "Orange", Color(0xFFF7630C)),
+                            Triple("Silver", "Silver", Color(0xFFE1DFDD))
+                        )
+
+                        themePalettes.chunked(4).forEach { rowItems ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                rowItems.forEach { (themeId, label, color) ->
+                                    val isSelected = selectedThemeId == themeId || (selectedThemeId == "Windows $themeId")
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(if (isSelected) color.copy(alpha = 0.25f) else DividerColor.copy(alpha = 0.15f))
+                                            .border(1.dp, if (isSelected) color else DividerColor.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+                                            .clickable { viewModel.setTheme(themeId) }
+                                            .padding(vertical = 6.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(12.dp)
+                                                    .clip(CircleShape)
+                                                    .background(color)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = label,
+                                                fontSize = 10.sp,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                color = if (isSelected) PrimaryGold else TextPrimary
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Background Transparency Slider (Round thumb, default 100%)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Transparansi Background", fontSize = 12.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
+                            Text("${(bgTransparency * 100).toInt()}%", fontSize = 12.sp, color = PrimaryGold, fontWeight = FontWeight.Bold)
+                        }
+
+                        RoundSlider(
+                            value = bgTransparency,
+                            onValueChange = { viewModel.setBackgroundTransparency(it) },
+                            valueRange = 0f..1f,
+                            activeColor = PrimaryGold,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        // Quick presets
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            listOf(
+                                0f to "Solid",
+                                0.4f to "Mica 40%",
+                                0.85f to "Aero 85%",
+                                1.0f to "Glass 100%"
+                            ).forEach { (value, label) ->
+                                val isSelected = kotlin.math.abs(bgTransparency - value) < 0.05f
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(if (isSelected) PrimaryGold.copy(alpha = 0.2f) else DividerColor.copy(alpha = 0.15f))
+                                        .border(1.dp, if (isSelected) PrimaryGold else DividerColor.copy(alpha = 0.35f), RoundedCornerShape(6.dp))
+                                        .clickable { viewModel.setBackgroundTransparency(value) }
+                                        .padding(vertical = 4.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = label,
+                                        fontSize = 9.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isSelected) PrimaryGold else UnselectedWhite
                                     )
                                 }
                             }
-                            Spacer(modifier = Modifier.height(4.dp))
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // ================== DROPDOWN 2: EFEK AUDIO (DSP STUDIO) ==================
+        Card(
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = CardBackground),
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, DividerColor.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { isEffectsExpanded = !isEffectsExpanded },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.SurroundSound, contentDescription = null, tint = AccentTeal, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Efek Audio (DSP)",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = TextPrimary
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = if (isEffectsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            tint = UnselectedWhite,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    // Master Toggle Switch for Effects
+                    Switch(
+                        checked = isEffectsEnabled,
+                        onCheckedChange = { viewModel.setEffectsEnabled(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color(0xFF101014),
+                            checkedTrackColor = AccentTeal,
+                            uncheckedTrackColor = DividerColor.copy(alpha = 0.4f)
+                        ),
+                        modifier = Modifier.height(24.dp)
+                    )
+                }
+
+                AnimatedVisibility(visible = isEffectsExpanded) {
+                    Column(modifier = Modifier.padding(top = 10.dp)) {
+                        if (!isEffectsEnabled) {
                             Text(
-                                text = label.split(" ").last(),
-                                fontSize = 9.sp,
-                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
-                                color = if (isSelected) PrimaryGold else UnselectedWhite,
-                                maxLines = 1
+                                text = "Efek audio sedang dinonaktifkan (Bypass)",
+                                fontSize = 11.sp,
+                                color = UnselectedWhite,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            )
+                        }
+
+                        // 1. REVERB EFFECT
+                        Text("EFEK REVERB (GEMA RUANG)", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AccentTeal)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            listOf("Mati", "Kecil", "Sedang", "Aula", "Plate").forEach { preset ->
+                                val isSelected = reverbPreset == preset
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(if (isSelected && isEffectsEnabled) AccentTeal.copy(alpha = 0.25f) else DividerColor.copy(alpha = 0.15f))
+                                        .border(1.dp, if (isSelected && isEffectsEnabled) AccentTeal else DividerColor.copy(alpha = 0.35f), RoundedCornerShape(6.dp))
+                                        .clickable(enabled = isEffectsEnabled) { viewModel.setReverbPreset(preset) }
+                                        .padding(vertical = 5.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = preset,
+                                        fontSize = 9.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isSelected && isEffectsEnabled) AccentTeal else TextPrimary
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // 2. PITCH / NADA SUARA
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("PITCH / NADA SUARA", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = PrimaryGold)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = if (pitchSemiTones > 0f) "+${String.format("%.1f", pitchSemiTones)} Nada"
+                                           else if (pitchSemiTones < 0f) "${String.format("%.1f", pitchSemiTones)} Nada"
+                                           else "Normal (0)",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = PrimaryGold
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Reset",
+                                    fontSize = 9.sp,
+                                    color = AccentTeal,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(DividerColor.copy(alpha = 0.3f))
+                                        .clickable(enabled = isEffectsEnabled) { viewModel.setPitchSemiTones(0f) }
+                                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                        RoundSlider(
+                            value = pitchSemiTones,
+                            onValueChange = { viewModel.setPitchSemiTones(it) },
+                            valueRange = -6f..6f,
+                            enabled = isEffectsEnabled,
+                            activeColor = PrimaryGold,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // 3. SUPER BASS (BASS BOOST)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("SUPER BASS (BASS BOOST)", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = PrimaryGold)
+                            Text("${(superBassStrength * 100).toInt()}%", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = PrimaryGold)
+                        }
+                        RoundSlider(
+                            value = superBassStrength,
+                            onValueChange = { viewModel.setSuperBassStrength(it) },
+                            valueRange = 0f..1f,
+                            enabled = isEffectsEnabled,
+                            activeColor = PrimaryGold,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // 4. 3D AUDIO (VIRTUALIZER / SURROUND)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("3D AUDIO (SURROUND SPACE)", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AccentTeal)
+                            Text("${(virtualizer3DStrength * 100).toInt()}%", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AccentTeal)
+                        }
+                        RoundSlider(
+                            value = virtualizer3DStrength,
+                            onValueChange = { viewModel.setVirtualizer3DStrength(it) },
+                            valueRange = 0f..1f,
+                            enabled = isEffectsEnabled,
+                            activeColor = AccentTeal,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // 5. L / R AUDIO (STEREO PAN BALANCE)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("KESEIMBANGAN L / R AUDIO", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = if (lrAudioBalance < -0.05f) "Kiri (${(-lrAudioBalance * 100).toInt()}%)"
+                                           else if (lrAudioBalance > 0.05f) "Kanan (${(lrAudioBalance * 100).toInt()}%)"
+                                           else "Tengah (Center)",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AccentTeal
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Tengah",
+                                    fontSize = 9.sp,
+                                    color = PrimaryGold,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(DividerColor.copy(alpha = 0.3f))
+                                        .clickable(enabled = isEffectsEnabled) { viewModel.setLrAudioBalance(0f) }
+                                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                        RoundSlider(
+                            value = lrAudioBalance,
+                            onValueChange = { viewModel.setLrAudioBalance(it) },
+                            valueRange = -1.0f..1.0f,
+                            enabled = isEffectsEnabled,
+                            activeColor = AccentTeal,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // ================== DROPDOWN 3: EQUALISER (5-BAND GRAPHIC) ==================
+        Card(
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = CardBackground),
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, DividerColor.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { isEqualizerExpanded = !isEqualizerExpanded },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.GraphicEq, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Equaliser Grafis (5-Band)",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = TextPrimary
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = if (isEqualizerExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            tint = UnselectedWhite,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    // Master Toggle Switch for Equalizer
+                    Switch(
+                        checked = isEqualizerEnabled,
+                        onCheckedChange = { viewModel.setEqualizerEnabled(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color(0xFF101014),
+                            checkedTrackColor = PrimaryGold,
+                            uncheckedTrackColor = DividerColor.copy(alpha = 0.4f)
+                        ),
+                        modifier = Modifier.height(24.dp)
+                    )
+                }
+
+                AnimatedVisibility(visible = isEqualizerExpanded) {
+                    Column(modifier = Modifier.padding(top = 10.dp)) {
+                        // Presets Chips
+                        Text("PRESET EQUALISER", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = PrimaryGold)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            val presets = listOf("Normal", "Bass Boost", "Vokal", "Rock", "Pop")
+                            items(presets) { preset ->
+                                val isSelected = selectedPresetName == preset
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(if (isSelected && isEqualizerEnabled) PrimaryGold.copy(alpha = 0.25f) else DividerColor.copy(alpha = 0.15f))
+                                        .border(1.dp, if (isSelected && isEqualizerEnabled) PrimaryGold else DividerColor.copy(alpha = 0.35f), RoundedCornerShape(6.dp))
+                                        .clickable(enabled = isEqualizerEnabled) { viewModel.applyPreset(preset) }
+                                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                                ) {
+                                    Text(
+                                        text = preset,
+                                        fontSize = 10.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isSelected && isEqualizerEnabled) PrimaryGold else TextPrimary
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // 5 Sliders for Bands
+                        val bandLabels = listOf("60 Hz (Sub)", "230 Hz (Bass)", "910 Hz (Mid)", "4 kHz (High)", "14 kHz (Air)")
+                        equalizerBands.forEachIndexed { index, gainDb ->
+                            val label = bandLabels.getOrElse(index) { "Band $index" }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(label, fontSize = 10.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
+                                Text(
+                                    text = if (gainDb > 0f) "+${String.format("%.1f", gainDb)} dB"
+                                           else if (gainDb < 0f) "${String.format("%.1f", gainDb)} dB"
+                                           else "0.0 dB",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (gainDb != 0f) PrimaryGold else UnselectedWhite
+                                )
+                            }
+                            RoundSlider(
+                                value = gainDb,
+                                onValueChange = { viewModel.updateEqualizerBand(index, it) },
+                                valueRange = -12f..12f,
+                                enabled = isEqualizerEnabled,
+                                activeColor = PrimaryGold,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // ================== DROPDOWN 4: VOLUME & KONTROL SUARA ==================
+        Card(
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = CardBackground),
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, DividerColor.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { isVolumeExpanded = !isVolumeExpanded }
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.VolumeUp, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Volume & Kontrol Suara",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = TextPrimary
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "${(volume * 100).toInt()}%",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = PrimaryGold
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = if (isVolumeExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            tint = UnselectedWhite,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                AnimatedVisibility(visible = isVolumeExpanded) {
+                    Column(modifier = Modifier.padding(top = 10.dp)) {
+                        // Volume Audio
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("VOLUME AUDIO", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = PrimaryGold)
+                            Text("${(volume * 100).toInt()}%", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = PrimaryGold)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                            IconButton(onClick = { viewModel.setVolume(if (volume > 0f) 0f else 1f) }, modifier = Modifier.size(28.dp)) {
+                                Icon(
+                                    imageVector = if (volume == 0f) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
+                                    contentDescription = null,
+                                    tint = PrimaryGold,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            RoundSlider(
+                                value = volume,
+                                onValueChange = { viewModel.setVolume(it) },
+                                valueRange = 0f..1f,
+                                activeColor = PrimaryGold,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Volume Video
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("VOLUME VIDEO", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AccentTeal)
+                            Text("${(videoVolume * 100).toInt()}%", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AccentTeal)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                            IconButton(onClick = { viewModel.setVideoVolume(if (videoVolume > 0f) 0f else 1f) }, modifier = Modifier.size(28.dp)) {
+                                Icon(
+                                    imageVector = if (videoVolume == 0f) Icons.Default.VolumeMute else Icons.Default.Movie,
+                                    contentDescription = null,
+                                    tint = AccentTeal,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            RoundSlider(
+                                value = videoVolume,
+                                onValueChange = { viewModel.setVideoVolume(it) },
+                                valueRange = 0f..1f,
+                                activeColor = AccentTeal,
+                                modifier = Modifier.weight(1f)
                             )
                         }
                     }
@@ -683,282 +1275,94 @@ fun StudioDrawerContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(18.dp))
-
-        // SECTION 2: PENGATURAN TRANSPARANSI BACKGROUND (ACRYLIC GLASS)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.Opacity,
-                    contentDescription = null,
-                    tint = PrimaryGold,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "TRANSPARANSI BACKGROUND",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 11.sp,
-                    color = PrimaryGold,
-                    letterSpacing = 1.sp
-                )
-            }
-            Text(
-                text = "${(bgTransparency * 100).toInt()}% Glass",
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 11.sp,
-                color = TextPrimary
-            )
-        }
-        Spacer(modifier = Modifier.height(4.dp))
-        Slider(
-            value = bgTransparency,
-            onValueChange = { viewModel.setBackgroundTransparency(it) },
-            valueRange = 0f..1f,
-            colors = SliderDefaults.colors(
-                activeTrackColor = PrimaryGold,
-                thumbColor = PrimaryGold,
-                inactiveTrackColor = DividerColor
-            ),
-            modifier = Modifier.fillMaxWidth()
-        )
-        // Transparency Presets Chips
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            listOf(
-                0f to "Solid",
-                0.4f to "Mica 40%",
-                0.85f to "Aero 85%",
-                1.0f to "Glass 100%"
-            ).forEach { (value, label) ->
-                val isSelected = kotlin.math.abs(bgTransparency - value) < 0.05f
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (isSelected) PrimaryGold.copy(alpha = 0.2f) else CardBackground)
-                        .border(1.dp, if (isSelected) PrimaryGold else DividerColor.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
-                        .clickable { viewModel.setBackgroundTransparency(value) }
-                        .padding(vertical = 5.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = label,
-                        fontSize = 9.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isSelected) PrimaryGold else UnselectedWhite
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(DividerColor.copy(alpha = 0.5f)))
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // SECTION 2: VOLUME AUDIO UTAMA
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "VOLUME AUDIO",
-                fontWeight = FontWeight.Bold,
-                fontSize = 11.sp,
-                color = PrimaryGold,
-                letterSpacing = 1.sp
-            )
-            Text(
-                text = "${(volume * 100).toInt()}%",
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 12.sp,
-                color = TextPrimary
-            )
-        }
-        Spacer(modifier = Modifier.height(6.dp))
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            IconButton(
-                onClick = { viewModel.setVolume(if (volume > 0f) 0f else 1f) },
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    imageVector = if (volume == 0f) Icons.Default.VolumeOff else if (volume < 0.5f) Icons.Default.VolumeDown else Icons.Default.VolumeUp,
-                    contentDescription = "Mute/Unmute Audio",
-                    tint = PrimaryGold,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            Slider(
-                value = volume,
-                onValueChange = { viewModel.setVolume(it) },
-                valueRange = 0f..1f,
-                colors = SliderDefaults.colors(
-                    activeTrackColor = PrimaryGold,
-                    thumbColor = PrimaryGold,
-                    inactiveTrackColor = DividerColor
-                ),
-                modifier = Modifier.weight(1f)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // SECTION 3: VOLUME VIDEO
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "VOLUME VIDEO",
-                fontWeight = FontWeight.Bold,
-                fontSize = 11.sp,
-                color = AccentTeal,
-                letterSpacing = 1.sp
-            )
-            Text(
-                text = "${(videoVolume * 100).toInt()}%",
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 12.sp,
-                color = TextPrimary
-            )
-        }
-        Spacer(modifier = Modifier.height(6.dp))
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            IconButton(
-                onClick = { viewModel.setVideoVolume(if (videoVolume > 0f) 0f else 1f) },
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    imageVector = if (videoVolume == 0f) Icons.Default.VolumeMute else Icons.Default.Movie,
-                    contentDescription = "Mute/Unmute Video",
-                    tint = AccentTeal,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            Slider(
-                value = videoVolume,
-                onValueChange = { viewModel.setVideoVolume(it) },
-                valueRange = 0f..1f,
-                colors = SliderDefaults.colors(
-                    activeTrackColor = AccentTeal,
-                    thumbColor = AccentTeal,
-                    inactiveTrackColor = DividerColor
-                ),
-                modifier = Modifier.weight(1f)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(DividerColor.copy(alpha = 0.5f)))
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // SECTION 4: PENGATUR WAKTU TIDUR (SLEEP TIMER)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "PENGATUR WAKTU TIDUR",
-                fontWeight = FontWeight.Bold,
-                fontSize = 11.sp,
-                color = PrimaryGold,
-                letterSpacing = 1.sp
-            )
-            if (sleepTimerRemaining > 0) {
-                val mins = sleepTimerRemaining / 60
-                val secs = sleepTimerRemaining % 60
-                Text(
-                    text = String.format("⏳ %02d:%02d", mins, secs),
-                    color = AccentTeal,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
         Spacer(modifier = Modifier.height(10.dp))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            val timerOptions = listOf(0 to "Mati", 15 to "15m", 30 to "30m", 45 to "45m", 60 to "60m")
-            items(timerOptions) { (min, label) ->
-                val isSelected = sleepTimerMinutes == min
-                Box(
+
+        // ================== DROPDOWN 5: PENGATUR WAKTU TIDUR ==================
+        Card(
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = CardBackground),
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, DividerColor.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(
-                            if (isSelected) PrimaryGold 
-                            else if (IsDarkTheme) Color.White.copy(alpha = 0.08f) 
-                            else Color.Black.copy(alpha = 0.06f)
-                        )
-                        .border(1.dp, if (isSelected) PrimaryGold else DividerColor.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                        .clickable { viewModel.setSleepTimer(min) }
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                        .fillMaxWidth()
+                        .clickable { isSleepTimerExpanded = !isSleepTimerExpanded }
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = label,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isSelected) Color(0xFF101014) else TextPrimary,
-                        modifier = Modifier.zIndex(1f)
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Bedtime, contentDescription = null, tint = AccentTeal, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Pengatur Waktu Tidur",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = TextPrimary
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (sleepTimerRemaining > 0) {
+                            val mins = sleepTimerRemaining / 60
+                            val secs = sleepTimerRemaining % 60
+                            Text(
+                                text = String.format("%02d:%02d", mins, secs),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AccentTeal
+                            )
+                        } else {
+                            Text(
+                                text = if (sleepTimerMinutes > 0) "${sleepTimerMinutes}m" else "Mati",
+                                fontSize = 11.sp,
+                                color = UnselectedWhite
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = if (isSleepTimerExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            tint = UnselectedWhite,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                AnimatedVisibility(visible = isSleepTimerExpanded) {
+                    Column(modifier = Modifier.padding(top = 10.dp)) {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            val timerOptions = listOf(0 to "Mati", 15 to "15m", 30 to "30m", 45 to "45m", 60 to "60m")
+                            items(timerOptions) { (min, label) ->
+                                val isSelected = sleepTimerMinutes == min
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(
+                                            if (isSelected) AccentTeal 
+                                            else DividerColor.copy(alpha = 0.15f)
+                                        )
+                                        .border(1.dp, if (isSelected) AccentTeal else DividerColor.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+                                        .clickable { viewModel.setSleepTimer(min) }
+                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = label,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isSelected) Color(0xFF101014) else TextPrimary
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
-        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(DividerColor.copy(alpha = 0.5f)))
         Spacer(modifier = Modifier.height(16.dp))
-
-        // SECTION 5: EQUALIZER PRESETS
-        Text(
-            text = "EQUALIZER PRESET",
-            fontWeight = FontWeight.Bold,
-            fontSize = 11.sp,
-            color = PrimaryGold,
-            letterSpacing = 1.sp
-        )
-        Spacer(modifier = Modifier.height(10.dp))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            val presets = listOf("Normal", "Bass Boost", "Vokal", "Rock", "Pop")
-            items(presets) { preset ->
-                val isSelected = selectedPresetName == preset
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(
-                            if (isSelected) AccentTeal 
-                            else if (IsDarkTheme) Color.White.copy(alpha = 0.08f) 
-                            else Color.Black.copy(alpha = 0.06f)
-                        )
-                        .border(1.dp, if (isSelected) AccentTeal else DividerColor.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                        .clickable { viewModel.applyPreset(preset) }
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                ) {
-                    Text(
-                        text = preset,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isSelected) Color(0xFF101014) else TextPrimary,
-                        modifier = Modifier.zIndex(1f)
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
 
         // FOOTER INFO
         Card(
@@ -1096,99 +1500,113 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
+        modifier = Modifier.fillMaxSize()
     ) {
-        // App Header
-        Row(
+        // App Header (Solid Non-Transparent Header Bar matching Nav)
+        Surface(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            color = HeaderBackground,
+            tonalElevation = 2.dp,
+            shadowElevation = 1.dp
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(
-                    onClick = onOpenDrawer,
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(if (IsDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
-                        .border(1.dp, DividerColor.copy(alpha = 0.35f), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Menu,
-                        contentDescription = "Menu Slider",
-                        tint = PrimaryGold,
-                        modifier = Modifier.size(20.dp)
-                    )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(0.5.dp, DividerColor.copy(alpha = 0.35f))
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = onOpenDrawer,
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(if (IsDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
+                            .border(1.dp, DividerColor.copy(alpha = 0.35f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Menu,
+                            contentDescription = "Menu Slider",
+                            tint = PrimaryGold,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "NOERAE PLAYER",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = PrimaryGold,
+                            letterSpacing = 0.5.sp
+                        )
+                        Text(
+                            text = "Pustaka Lagu • ${tracks.size} item",
+                            fontSize = 11.sp,
+                            color = UnselectedWhite
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.width(10.dp))
-                Column {
-                    Text(
-                        text = "NOERAE PLAYER",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = PrimaryGold,
-                        letterSpacing = 0.5.sp
-                    )
-                    Text(
-                        text = "Pustaka Lagu • ${tracks.size} item",
-                        fontSize = 11.sp,
-                        color = UnselectedWhite
-                    )
-                }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                // Folder scanner button
-                IconButton(
-                    onClick = { showFolderScannerDialog = true },
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(if (IsDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
-                        .border(1.dp, DividerColor.copy(alpha = 0.35f), CircleShape)
-                ) {
-                    Icon(Icons.Default.Folder, contentDescription = "Muat Folder Penyimpanan", tint = PrimaryGold, modifier = Modifier.size(20.dp))
-                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Folder scanner button
+                    IconButton(
+                        onClick = { showFolderScannerDialog = true },
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(if (IsDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
+                            .border(1.dp, DividerColor.copy(alpha = 0.35f), CircleShape)
+                    ) {
+                        Icon(Icons.Default.Folder, contentDescription = "Muat Folder Penyimpanan", tint = PrimaryGold, modifier = Modifier.size(20.dp))
+                    }
 
-                // Automatic scan button (Reload Pustaka)
-                IconButton(
-                    onClick = {
-                        val permissionsToRequest = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                            arrayOf(
-                                android.Manifest.permission.READ_MEDIA_AUDIO,
-                                android.Manifest.permission.READ_MEDIA_VIDEO
-                            )
-                        } else {
-                            arrayOf(
-                                android.Manifest.permission.READ_EXTERNAL_STORAGE
-                            )
-                        }
-                        
-                        var allGranted = true
-                        for (perm in permissionsToRequest) {
-                            if (androidx.core.content.ContextCompat.checkSelfPermission(context, perm) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                                allGranted = false
-                                break
+                    // Automatic scan button (Reload Pustaka)
+                    IconButton(
+                        onClick = {
+                            val permissionsToRequest = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                arrayOf(
+                                    android.Manifest.permission.READ_MEDIA_AUDIO,
+                                    android.Manifest.permission.READ_MEDIA_VIDEO
+                                )
+                            } else {
+                                arrayOf(
+                                    android.Manifest.permission.READ_EXTERNAL_STORAGE
+                                )
                             }
-                        }
-                        
-                        if (allGranted) {
-                            viewModel.autoScanMusicFolders()
-                        } else {
-                            permissionLauncher.launch(permissionsToRequest)
-                        }
-                    },
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(if (IsDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
-                        .border(1.dp, DividerColor.copy(alpha = 0.35f), CircleShape)
-                ) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Pindai Perangkat", tint = PrimaryGold, modifier = Modifier.size(20.dp))
+                            
+                            var allGranted = true
+                            for (perm in permissionsToRequest) {
+                                if (androidx.core.content.ContextCompat.checkSelfPermission(context, perm) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                                    allGranted = false
+                                    break
+                                }
+                            }
+                            
+                            if (allGranted) {
+                                viewModel.autoScanMusicFolders()
+                            } else {
+                                permissionLauncher.launch(permissionsToRequest)
+                            }
+                        },
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(if (IsDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
+                            .border(1.dp, DividerColor.copy(alpha = 0.35f), CircleShape)
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Pindai Perangkat", tint = PrimaryGold, modifier = Modifier.size(20.dp))
+                    }
                 }
             }
         }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
 
         // Folder scanner Dialog popup
         if (showFolderScannerDialog) {
@@ -1309,12 +1727,11 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                         .clip(RoundedCornerShape(20.dp))
                         .background(
                             if (selected) PrimaryGold 
-                            else if (IsDarkTheme) Color.White.copy(alpha = 0.08f) 
-                            else Color.Black.copy(alpha = 0.06f)
+                            else CardBackground
                         )
                         .border(
                             1.2.dp,
-                            if (selected) PrimaryGold else DividerColor.copy(alpha = 0.45f),
+                            if (selected) PrimaryGold else DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f),
                             RoundedCornerShape(20.dp)
                         )
                         .clickable { groupSelection = chip }
@@ -1386,6 +1803,7 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                 }
             }
         }
+        }
     }
 }
 
@@ -1398,86 +1816,20 @@ fun TrackItemCard(
     onDownload: () -> Unit = {},
     onAddToPlaylist: (() -> Unit)? = null
 ) {
-    var offsetX by remember { mutableFloatStateOf(0f) }
-    val animatedOffsetX by animateFloatAsState(targetValue = offsetX, label = "swipe_offset")
-
-    Box(
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = CardBackground),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
+            .border(1.dp, DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f), RoundedCornerShape(12.dp))
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+            .testTag("track_card_${track.id}")
     ) {
-        // Transparent Delete action container revealed when swiping left
-        if (animatedOffsetX < -5f) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color.Transparent)
-                    .clickable { onDelete() }
-                    .padding(end = 16.dp),
-                contentAlignment = Alignment.CenterEnd
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFE53935).copy(alpha = 0.85f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Hapus Berkas",
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        }
-
-        // Foreground Card that can be clicked, long-pressed, or dragged horizontally
-        Card(
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = CardBackground),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .offset { IntOffset(animatedOffsetX.roundToInt(), 0) }
-                .border(1.dp, DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f), RoundedCornerShape(12.dp))
-                .pointerInput(track.id) {
-                    detectHorizontalDragGestures(
-                        onDragEnd = {
-                            if (offsetX < -100f) {
-                                offsetX = -80f
-                            } else {
-                                offsetX = 0f
-                            }
-                        },
-                        onDragCancel = {
-                            offsetX = 0f
-                        },
-                        onHorizontalDrag = { _, dragAmount ->
-                            val newOffset = offsetX + dragAmount
-                            // Allow swiping left (negative values), clamp between -140 and 0
-                            offsetX = newOffset.coerceIn(-140f, 0f)
-                        }
-                    )
-                }
-                .pointerInput(track.id) {
-                    detectTapGestures(
-                        onTap = {
-                            if (offsetX != 0f) {
-                                offsetX = 0f
-                            } else {
-                                onClick()
-                            }
-                        },
-                        onLongPress = {
-                            onLongClick()
-                        }
-                    )
-                }
-                .testTag("track_card_${track.id}")
-        ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1676,9 +2028,7 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
 
         // Main layout container (Fixed-bottom layout)
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -1687,99 +2037,109 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Top Action Toolbar
-                Row(
+                // Top Action Toolbar (Solid Non-Transparent Header Bar matching Nav)
+                Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    color = HeaderBackground,
+                    tonalElevation = 2.dp,
+                    shadowElevation = 1.dp
                 ) {
-                    IconButton(
-                        onClick = onOpenDrawer,
+                    Row(
                         modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(if (IsDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
-                            .border(1.dp, DividerColor.copy(alpha = 0.35f), CircleShape)
+                            .fillMaxWidth()
+                            .border(0.5.dp, DividerColor.copy(alpha = 0.35f))
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Menu, contentDescription = "Menu Pengaturan", tint = PrimaryGold, modifier = Modifier.size(20.dp))
-                    }
-                    Text("NOERAE PLAYER", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = PrimaryGold, letterSpacing = 1.sp)
-                    Box {
                         IconButton(
-                            onClick = { showMenuDropdown = true },
+                            onClick = onOpenDrawer,
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(CircleShape)
                                 .background(if (IsDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
                                 .border(1.dp, DividerColor.copy(alpha = 0.35f), CircleShape)
                         ) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "Pilihan Menu", tint = TextPrimary, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.Menu, contentDescription = "Menu Pengaturan", tint = PrimaryGold, modifier = Modifier.size(20.dp))
                         }
-                        DropdownMenu(
-                            expanded = showMenuDropdown,
-                            onDismissRequest = { showMenuDropdown = false },
-                            modifier = Modifier.background(CardBackground)
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Edit Tag Musik (MP3 Info)", color = TextPrimary, fontSize = 13.sp) },
-                                onClick = {
-                                    showMenuDropdown = false
-                                    showEditorDrawer = true
-                                },
-                                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Equaliser Studio 5-Band", color = TextPrimary, fontSize = 13.sp) },
-                                onClick = {
-                                    showMenuDropdown = false
-                                    showEqualizerDialog = true
-                                },
-                                leadingIcon = { Icon(Icons.Default.Album, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Kecepatan Tempo (Speed)", color = TextPrimary, fontSize = 13.sp) },
-                                onClick = {
-                                    showMenuDropdown = false
-                                    showSpeedDialog = true
-                                },
-                                leadingIcon = { Icon(Icons.Default.Speed, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Gaya & Warna Spektrum", color = TextPrimary, fontSize = 13.sp) },
-                                onClick = {
-                                    showMenuDropdown = false
-                                    showSpectrumDialog = true
-                                },
-                                leadingIcon = { Icon(Icons.Default.Palette, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Pengulangan Segmen A-B", color = TextPrimary, fontSize = 13.sp) },
-                                onClick = {
-                                    showMenuDropdown = false
-                                    showAbRepeatDialog = true
-                                },
-                                leadingIcon = { Icon(Icons.Default.Sync, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Tambahkan ke Playlist", color = TextPrimary, fontSize = 13.sp) },
-                                onClick = {
-                                    showMenuDropdown = false
-                                    viewModel.trackToAddToPlaylist = track
-                                },
-                                leadingIcon = { Icon(Icons.Default.PlaylistAdd, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
-                            )
+                        Text("NOERAE PLAYER", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = PrimaryGold, letterSpacing = 1.sp)
+                        Box {
+                            IconButton(
+                                onClick = { showMenuDropdown = true },
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(if (IsDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
+                                    .border(1.dp, DividerColor.copy(alpha = 0.35f), CircleShape)
+                            ) {
+                                Icon(Icons.Default.MoreVert, contentDescription = "Pilihan Menu", tint = TextPrimary, modifier = Modifier.size(20.dp))
+                            }
+                            DropdownMenu(
+                                expanded = showMenuDropdown,
+                                onDismissRequest = { showMenuDropdown = false },
+                                modifier = Modifier.background(CardBackground)
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Edit Tag Musik (MP3 Info)", color = TextPrimary, fontSize = 13.sp) },
+                                    onClick = {
+                                        showMenuDropdown = false
+                                        showEditorDrawer = true
+                                    },
+                                    leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Equaliser Studio 5-Band", color = TextPrimary, fontSize = 13.sp) },
+                                    onClick = {
+                                        showMenuDropdown = false
+                                        showEqualizerDialog = true
+                                    },
+                                    leadingIcon = { Icon(Icons.Default.Album, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Kecepatan Tempo (Speed)", color = TextPrimary, fontSize = 13.sp) },
+                                    onClick = {
+                                        showMenuDropdown = false
+                                        showSpeedDialog = true
+                                    },
+                                    leadingIcon = { Icon(Icons.Default.Speed, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Gaya & Warna Spektrum", color = TextPrimary, fontSize = 13.sp) },
+                                    onClick = {
+                                        showMenuDropdown = false
+                                        showSpectrumDialog = true
+                                    },
+                                    leadingIcon = { Icon(Icons.Default.Palette, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Pengulangan Segmen A-B", color = TextPrimary, fontSize = 13.sp) },
+                                    onClick = {
+                                        showMenuDropdown = false
+                                        showAbRepeatDialog = true
+                                    },
+                                    leadingIcon = { Icon(Icons.Default.Sync, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Tambahkan ke Playlist", color = TextPrimary, fontSize = 13.sp) },
+                                    onClick = {
+                                        showMenuDropdown = false
+                                        viewModel.trackToAddToPlaylist = track
+                                    },
+                                    leadingIcon = { Icon(Icons.Default.PlaylistAdd, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
+                                )
+                            }
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // SWITCH TABS: Lirik Karaoke vs Spektrum Musik (State managed at function top level)
+                // SWITCH TABS: Lirik Karaoke vs Spektrum Musik (Glass card background responds to transparency slider)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth(0.9f)
-                        .background(Color.Transparent, RoundedCornerShape(24.dp))
-                        .border(1.dp, DividerColor.copy(alpha = 0.35f), RoundedCornerShape(24.dp))
+                        .background(CardBackground, RoundedCornerShape(24.dp))
+                        .border(1.dp, DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f), RoundedCornerShape(24.dp))
                         .padding(4.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
@@ -1797,9 +2157,10 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                         ) {
                             Text(
                                 text = if (tab == "Karaoke") "Lirik Karaoke" else "Spektrum Musik",
-                                color = if (isSelected) Color(0xFF101014) else TextPrimary.copy(alpha = 0.75f),
+                                color = if (isSelected) Color(0xFF101014) else TextPrimary,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp
+                                fontSize = 12.sp,
+                                modifier = Modifier.zIndex(1f)
                             )
                         }
                     }
@@ -1983,102 +2344,136 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
             }
 
             // ================== SECTION 3: FIXED BOTTOM CONTROLLER CONSOLE ==================
-            Column(
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = CardBackground),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.Transparent, RoundedCornerShape(20.dp))
-                    .border(1.dp, DividerColor.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
-                    .padding(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+                    .border(1.dp, DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f), RoundedCornerShape(20.dp))
             ) {
-                // Seekbar slider progress
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Slider(
-                        value = playbackProgress.toFloat(),
-                        onValueChange = { viewModel.seekTo(it.toLong()) },
-                        valueRange = 0f..duration.toFloat(),
-                        colors = SliderDefaults.colors(
-                            activeTrackColor = PrimaryGold,
-                            inactiveTrackColor = DividerColor.copy(alpha = 0.4f),
-                            thumbColor = PrimaryGold
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(formatMs(playbackProgress), color = UnselectedWhite, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        Text(formatMs(duration), color = UnselectedWhite, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                // Action media buttons row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Shuffle icon
-                    IconButton(onClick = { viewModel.setShuffle(!isShuffle) }) {
-                        Icon(
-                            imageVector = Icons.Default.Shuffle,
-                            contentDescription = "Acak",
-                            tint = if (isShuffle) AccentTeal else TextPrimary.copy(alpha = 0.85f)
+                    // Seekbar slider progress
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Slider(
+                            value = playbackProgress.toFloat(),
+                            onValueChange = { viewModel.seekTo(it.toLong()) },
+                            valueRange = 0f..duration.toFloat(),
+                            colors = SliderDefaults.colors(
+                                activeTrackColor = PrimaryGold,
+                                inactiveTrackColor = DividerColor.copy(alpha = 0.4f),
+                                thumbColor = PrimaryGold
+                            ),
+                            modifier = Modifier.fillMaxWidth()
                         )
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(formatMs(playbackProgress), color = UnselectedWhite, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text(formatMs(duration), color = UnselectedWhite, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
 
-                    // Skip previous icon
-                    IconButton(onClick = { viewModel.playPreviousTrack() }) {
-                        Icon(Icons.Default.SkipPrevious, contentDescription = "Sebelumnya", tint = TextPrimary, modifier = Modifier.size(34.dp))
-                    }
+                    Spacer(modifier = Modifier.height(6.dp))
 
-                    // Play/Pause circular container (Theme Primary Color)
-                    Box(
-                        modifier = Modifier
-                            .size(54.dp)
-                            .clip(CircleShape)
-                            .background(PrimaryGold)
-                            .border(1.5.dp, PrimaryGold.copy(alpha = 0.6f), CircleShape)
-                            .clickable { viewModel.togglePlayPause() },
-                        contentAlignment = Alignment.Center
+                    // Action media buttons row (Shuffle, Prev, Play, Next, Repeat)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = "Mainkan/Jeda",
-                            tint = Color(0xFF101014),
-                            modifier = Modifier.size(30.dp)
-                        )
-                    }
-
-                    // Skip next icon
-                    IconButton(onClick = { viewModel.playNextTrack() }) {
-                        Icon(Icons.Default.SkipNext, contentDescription = "Selanjutnya", tint = TextPrimary, modifier = Modifier.size(34.dp))
-                    }
-
-                    // Standard Repeat Mode button (RepeatOne / RepeatAll cleanly displayed without background box on number)
-                    IconButton(
-                        onClick = { viewModel.toggleRepeatMode() },
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        if (repeatMode == 1) {
-                            // Repeat One: native RepeatOne icon with clear number 1, tinted with theme color
+                        // Shuffle icon
+                        IconButton(
+                            onClick = { viewModel.setShuffle(!isShuffle) },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(if (isShuffle) PrimaryGold.copy(alpha = 0.2f) else if (IsDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
+                                .border(1.dp, if (isShuffle) PrimaryGold.copy(alpha = 0.5f) else DividerColor.copy(alpha = 0.35f), CircleShape)
+                        ) {
                             Icon(
-                                imageVector = Icons.Default.RepeatOne,
-                                contentDescription = "Looping Satu Lagu",
-                                tint = PrimaryGold,
-                                modifier = Modifier.size(26.dp)
+                                imageVector = Icons.Default.Shuffle,
+                                contentDescription = "Acak",
+                                tint = if (isShuffle) AccentTeal else TextPrimary,
+                                modifier = Modifier.size(20.dp)
                             )
-                        } else {
-                            // Repeat All
+                        }
+
+                        // Skip previous icon
+                        IconButton(
+                            onClick = { viewModel.playPreviousTrack() },
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(if (IsDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
+                                .border(1.dp, DividerColor.copy(alpha = 0.35f), CircleShape)
+                        ) {
+                            Icon(Icons.Default.SkipPrevious, contentDescription = "Sebelumnya", tint = TextPrimary, modifier = Modifier.size(26.dp))
+                        }
+
+                        // Play/Pause circular container (Theme Primary Color)
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .background(PrimaryGold)
+                                .border(1.5.dp, PrimaryGold.copy(alpha = 0.6f), CircleShape)
+                                .clickable { viewModel.togglePlayPause() },
+                            contentAlignment = Alignment.Center
+                        ) {
                             Icon(
-                                imageVector = Icons.Default.Repeat,
-                                contentDescription = "Looping Semua Lagu",
-                                tint = TextPrimary.copy(alpha = 0.65f),
-                                modifier = Modifier.size(24.dp)
+                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = "Mainkan/Jeda",
+                                tint = Color(0xFF101014),
+                                modifier = Modifier.size(32.dp)
                             )
+                        }
+
+                        // Skip next icon
+                        IconButton(
+                            onClick = { viewModel.playNextTrack() },
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(if (IsDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
+                                .border(1.dp, DividerColor.copy(alpha = 0.35f), CircleShape)
+                        ) {
+                            Icon(Icons.Default.SkipNext, contentDescription = "Selanjutnya", tint = TextPrimary, modifier = Modifier.size(26.dp))
+                        }
+
+                        // Standard Repeat Mode button
+                        IconButton(
+                            onClick = { viewModel.toggleRepeatMode() },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(if (repeatMode != 0) PrimaryGold.copy(alpha = 0.2f) else if (IsDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
+                                .border(1.dp, if (repeatMode != 0) PrimaryGold.copy(alpha = 0.5f) else DividerColor.copy(alpha = 0.35f), CircleShape)
+                        ) {
+                            if (repeatMode == 1) {
+                                // Repeat One
+                                Icon(
+                                    imageVector = Icons.Default.RepeatOne,
+                                    contentDescription = "Looping Satu Lagu",
+                                    tint = PrimaryGold,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            } else {
+                                // Repeat All
+                                Icon(
+                                    imageVector = Icons.Default.Repeat,
+                                    contentDescription = "Looping Semua Lagu",
+                                    tint = if (repeatMode == 2) AccentTeal else TextPrimary.copy(alpha = 0.65f),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -2618,174 +3013,185 @@ fun SearchScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
+        modifier = Modifier.fillMaxSize()
     ) {
-        // Search Header
-        Row(
+        // Search Header (Solid Non-Transparent Header Bar matching Nav)
+        Surface(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            color = HeaderBackground,
+            tonalElevation = 2.dp,
+            shadowElevation = 1.dp
         ) {
-            IconButton(
-                onClick = onOpenDrawer,
+            Row(
                 modifier = Modifier
-                    .size(38.dp)
-                    .clip(CircleShape)
-                    .background(if (IsDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
-                    .border(1.dp, DividerColor.copy(alpha = 0.35f), CircleShape)
+                    .fillMaxWidth()
+                    .border(0.5.dp, DividerColor.copy(alpha = 0.35f))
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.Menu,
-                    contentDescription = "Menu Slider",
-                    tint = PrimaryGold,
-                    modifier = Modifier.size(20.dp)
-                )
+                IconButton(
+                    onClick = onOpenDrawer,
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(if (IsDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
+                        .border(1.dp, DividerColor.copy(alpha = 0.35f), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Menu,
+                        contentDescription = "Menu Slider",
+                        tint = PrimaryGold,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = "Pencarian Media",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = TextPrimary,
+                        letterSpacing = 0.5.sp
+                    )
+                    Text(
+                        text = "Cari lagu, video, atau format",
+                        fontSize = 11.sp,
+                        color = UnselectedWhite
+                    )
+                }
             }
-            Spacer(modifier = Modifier.width(10.dp))
-            Column {
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            // Prominent Search Bar
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                placeholder = { Text("Ketik judul lagu, video, atau format...", color = UnselectedWhite, fontSize = 13.sp) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = PrimaryGold) },
+                trailingIcon = {
+                    if (query.isNotEmpty()) {
+                        IconButton(onClick = { query = "" }) {
+                            Icon(Icons.Default.Close, contentDescription = "Hapus", tint = UnselectedWhite)
+                        }
+                    }
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = PrimaryGold,
+                    unfocusedBorderColor = DividerColor.copy(alpha = 0.45f),
+                    focusedContainerColor = CardBackground,
+                    unfocusedContainerColor = CardBackground,
+                    focusedTextColor = TextPrimary,
+                    unfocusedTextColor = TextPrimary
+                ),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth().testTag("search_field_main")
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Quick Filter Chips
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                val filters = listOf("Semua", "Audio", "Video", "Lossless")
+                items(filters) { filter ->
+                    val isSelected = selectedFilter == filter
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(
+                                if (isSelected) PrimaryGold 
+                                else CardBackground
+                            )
+                            .border(
+                                1.2.dp,
+                                if (isSelected) PrimaryGold else DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f),
+                                RoundedCornerShape(20.dp)
+                            )
+                            .clickable { selectedFilter = filter }
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = filter,
+                            color = if (isSelected) Color(0xFF101014) else TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.zIndex(1f)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Results info
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
-                    text = "Pencarian Media",
+                    text = if (query.isBlank()) "Semua Media (${filteredList.size})" else "Hasil Pencarian (${filteredList.size})",
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    color = TextPrimary,
-                    letterSpacing = 0.5.sp
-                )
-                Text(
-                    text = "Cari lagu, video, atau format",
-                    fontSize = 11.sp,
                     color = UnselectedWhite
                 )
             }
-        }
 
-        Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-        // Prominent Search Bar
-        OutlinedTextField(
-            value = query,
-            onValueChange = { query = it },
-            placeholder = { Text("Ketik judul lagu, video, atau format...", color = UnselectedWhite, fontSize = 13.sp) },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = PrimaryGold) },
-            trailingIcon = {
-                if (query.isNotEmpty()) {
-                    IconButton(onClick = { query = "" }) {
-                        Icon(Icons.Default.Close, contentDescription = "Hapus", tint = UnselectedWhite)
-                    }
-                }
-            },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = PrimaryGold,
-                unfocusedBorderColor = DividerColor.copy(alpha = 0.45f),
-                focusedContainerColor = CardBackground,
-                unfocusedContainerColor = CardBackground,
-                focusedTextColor = TextPrimary,
-                unfocusedTextColor = TextPrimary
-            ),
-            shape = RoundedCornerShape(14.dp),
-            modifier = Modifier.fillMaxWidth().testTag("search_field_main")
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Quick Filter Chips
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            val filters = listOf("Semua", "Audio", "Video", "Lossless")
-            items(filters) { filter ->
-                val isSelected = selectedFilter == filter
+            if (filteredList.isEmpty()) {
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(
-                            if (isSelected) PrimaryGold 
-                            else if (IsDarkTheme) Color.White.copy(alpha = 0.08f) 
-                            else Color.Black.copy(alpha = 0.06f)
-                        )
-                        .border(
-                            1.2.dp,
-                            if (isSelected) PrimaryGold else DividerColor.copy(alpha = 0.45f),
-                            RoundedCornerShape(20.dp)
-                        )
-                        .clickable { selectedFilter = filter }
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                        .fillMaxWidth()
+                        .weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = filter,
-                        color = if (isSelected) Color(0xFF101014) else TextPrimary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.zIndex(1f)
-                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.SearchOff,
+                            contentDescription = null,
+                            tint = DividerColor,
+                            modifier = Modifier.size(64.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = if (query.isBlank()) "Tidak ada media ditemukan" else "Tidak ada hasil untuk \"$query\"",
+                            color = UnselectedWhite,
+                            fontSize = 14.sp
+                        )
+                    }
                 }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Results info
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = if (query.isBlank()) "Semua Media (${filteredList.size})" else "Hasil Pencarian (${filteredList.size})",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = UnselectedWhite
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        if (filteredList.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Default.SearchOff,
-                        contentDescription = null,
-                        tint = DividerColor,
-                        modifier = Modifier.size(64.dp)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = if (query.isBlank()) "Tidak ada media ditemukan" else "Tidak ada hasil untuk \"$query\"",
-                        color = UnselectedWhite,
-                        fontSize = 14.sp
-                    )
-                }
-            }
-        } else {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-            ) {
-                items(filteredList) { track ->
-                    TrackItemCard(
-                        track = track,
-                        onClick = {
-                            if (track.isVideo) {
-                                viewModel.playVideoTrack(track)
-                                viewModel.activeScreen = "Video"
-                            } else {
-                                viewModel.playTrack(track)
-                                viewModel.activeScreen = "Player"
-                            }
-                        },
-                        onDownload = {},
-                        onAddToPlaylist = { viewModel.trackToAddToPlaylist = track }
-                    )
+            } else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                ) {
+                    items(filteredList) { track ->
+                        TrackItemCard(
+                            track = track,
+                            onClick = {
+                                if (track.isVideo) {
+                                    viewModel.playVideoTrack(track)
+                                    viewModel.activeScreen = "Video"
+                                } else {
+                                    viewModel.playTrack(track)
+                                    viewModel.activeScreen = "Player"
+                                }
+                            },
+                            onDownload = {},
+                            onAddToPlaylist = { viewModel.trackToAddToPlaylist = track }
+                        )
+                    }
                 }
             }
         }
@@ -3743,66 +4149,79 @@ fun PlaylistScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
     var expandedPlaylistId by remember { mutableStateOf<Long?>(null) }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
+        modifier = Modifier.fillMaxSize()
     ) {
-        Row(
+        // Header (Solid Non-Transparent Header Bar matching Nav)
+        Surface(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            color = HeaderBackground,
+            tonalElevation = 2.dp,
+            shadowElevation = 1.dp
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(
-                    onClick = onOpenDrawer,
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(if (IsDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
-                        .border(1.dp, DividerColor.copy(alpha = 0.35f), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Menu,
-                        contentDescription = "Menu Slider",
-                        tint = PrimaryGold,
-                        modifier = Modifier.size(20.dp)
-                    )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(0.5.dp, DividerColor.copy(alpha = 0.35f))
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = onOpenDrawer,
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(if (IsDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
+                            .border(1.dp, DividerColor.copy(alpha = 0.35f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Menu,
+                            contentDescription = "Menu Slider",
+                            tint = PrimaryGold,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text("Playlist NOERAE", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = PrimaryGold, letterSpacing = 0.5.sp)
+                        Text("Kategori otomatis & manual", fontSize = 11.sp, color = UnselectedWhite)
+                    }
                 }
-                Spacer(modifier = Modifier.width(10.dp))
-                Column {
-                    Text("Playlist NOERAE", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = PrimaryGold, letterSpacing = 0.5.sp)
-                    Text("Kategori otomatis & manual", fontSize = 11.sp, color = UnselectedWhite)
-                }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                IconButton(
-                    onClick = { viewModel.generateAutoPlaylists() },
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(if (IsDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
-                        .border(1.dp, DividerColor.copy(alpha = 0.35f), CircleShape)
-                ) {
-                    Icon(Icons.Default.AutoAwesome, contentDescription = "Rekomendasi Genre", tint = PrimaryGold, modifier = Modifier.size(20.dp))
-                }
-                IconButton(
-                    onClick = { showPlaylistNameDialog = true },
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(PrimaryGold)
-                ) {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = "Tambah Manual",
-                        tint = Color(0xFF101014),
-                        modifier = Modifier.size(20.dp)
-                    )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    IconButton(
+                        onClick = { viewModel.generateAutoPlaylists() },
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(if (IsDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
+                            .border(1.dp, DividerColor.copy(alpha = 0.35f), CircleShape)
+                    ) {
+                        Icon(Icons.Default.AutoAwesome, contentDescription = "Rekomendasi Genre", tint = PrimaryGold, modifier = Modifier.size(20.dp))
+                    }
+                    IconButton(
+                        onClick = { showPlaylistNameDialog = true },
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(PrimaryGold)
+                    ) {
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = "Tambah Manual",
+                            tint = Color(0xFF101014),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
 
         if (playlists.isEmpty()) {
             Box(
@@ -3907,6 +4326,7 @@ fun PlaylistScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                     }
                 }
             }
+        }
         }
     }
 
