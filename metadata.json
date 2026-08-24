@@ -1,0 +1,8 @@
+{
+  "name": "player2",
+  "description": "Pemutar musik dan video lossless dengan equalizer, lirik sinkron real-time, editor tag, pembuat playlist genre otomatis, dan visualizer gelombang audio.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
