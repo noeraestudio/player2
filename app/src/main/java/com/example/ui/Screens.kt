@@ -66,6 +66,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.zIndex
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -139,6 +140,9 @@ val UnselectedWhite: Color
 val TextPrimary: Color
     @Composable get() = LocalAppColors.current.textPrimary
 
+val IsDarkTheme: Boolean
+    @Composable get() = LocalAppColors.current.isDark
+
 @Composable
 fun WindowsFluentLogo(modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 18.dp) {
     // Windows 11 Style 4-tiles Logo
@@ -193,16 +197,16 @@ fun HarmoniMainScreen(viewModel: MediaViewModel) {
     val primaryColor = customPrimaryColor?.let { Color(it) } ?: presetPrimary
     val secondaryColor = customSecondaryColor?.let { Color(it) } ?: presetSecondary
 
-    // Dynamic Acrylic Transparency
+    // Dynamic Acrylic Transparency with Frosted Glass Blur Texture
     val effectiveBgAlpha = (1f - bgTransparency).coerceIn(0f, 1f)
     val baseDark = Color(0xFF101014)
     val baseLight = Color(0xFFF4F4F6)
-    val backgroundColor = if (isDarkMode) baseDark.copy(alpha = effectiveBgAlpha) else baseLight.copy(alpha = effectiveBgAlpha)
-    val cardColor = Color.Transparent
-    val surfaceColor = if (isDarkMode) Color(0xFF1C1C22).copy(alpha = 0.94f) else Color(0xFFFFFFFF).copy(alpha = 0.96f)
-    val textPrimaryColor = if (isDarkMode) Color.White else Color(0xFF101014)
-    val textSecondaryColor = if (isDarkMode) Color(0xFF9E9AA6) else Color(0xFF4A4754)
-    val dividerColor = if (isDarkMode) Color(0xFF383540).copy(alpha = 0.45f) else Color(0xFFCBC6D6).copy(alpha = 0.55f)
+    val backgroundColor = if (isDarkMode) baseDark.copy(alpha = (effectiveBgAlpha * 0.7f).coerceAtLeast(0.05f)) else baseLight.copy(alpha = (effectiveBgAlpha * 0.7f).coerceAtLeast(0.08f))
+    val cardColor = if (isDarkMode) Color(0xFF1C1A24).copy(alpha = (0.55f - bgTransparency * 0.35f).coerceAtLeast(0.12f)) else Color(0xFFFFFFFF).copy(alpha = (0.65f - bgTransparency * 0.35f).coerceAtLeast(0.18f))
+    val surfaceColor = if (isDarkMode) Color(0xFF18171E).copy(alpha = 0.95f) else Color(0xFFFFFFFF).copy(alpha = 0.96f)
+    val textPrimaryColor = if (isDarkMode) Color(0xFFFFFFFF) else Color(0xFF121118)
+    val textSecondaryColor = if (isDarkMode) Color(0xFFA09CA8) else Color(0xFF555260)
+    val dividerColor = if (isDarkMode) Color(0xFF423E4C).copy(alpha = 0.5f) else Color(0xFFBFB9C9).copy(alpha = 0.6f)
     val iconColor = primaryColor
 
     val currentAppColors = AppColors(
@@ -239,30 +243,45 @@ fun HarmoniMainScreen(viewModel: MediaViewModel) {
             color = Color.Black
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
-                // Windows 11 Fluent Bloom / Acrylic Wallpaper Canvas
+                // Windows 11 Fluent Bloom / Frosted Acrylic Blur Canvas
                 Canvas(modifier = Modifier.fillMaxSize()) {
-                    drawRect(color = if (isDarkMode) Color(0xFF0C0B10) else Color(0xFFEAEAEE))
+                    // Base Canvas Tint
+                    drawRect(color = if (isDarkMode) Color(0xFF0D0C12) else Color(0xFFECECEF))
                     
-                    // Acrylic Ambient Glow Blobs
+                    // Acrylic Ambient Diffuse Glow Blobs (Simulating rich frosted backdrop)
                     drawCircle(
                         brush = Brush.radialGradient(
-                            colors = listOf(primaryColor.copy(alpha = 0.28f * (1f - bgTransparency * 0.4f)), Color.Transparent),
+                            colors = listOf(primaryColor.copy(alpha = (0.35f * (1f - bgTransparency * 0.3f)).coerceIn(0.10f, 0.45f)), Color.Transparent),
                             center = Offset(size.width * 0.2f, size.height * 0.15f),
+                            radius = size.width * 0.85f
+                        )
+                    )
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(secondaryColor.copy(alpha = (0.28f * (1f - bgTransparency * 0.3f)).coerceIn(0.08f, 0.35f)), Color.Transparent),
+                            center = Offset(size.width * 0.85f, size.height * 0.75f),
                             radius = size.width * 0.8f
                         )
                     )
                     drawCircle(
                         brush = Brush.radialGradient(
-                            colors = listOf(secondaryColor.copy(alpha = 0.22f * (1f - bgTransparency * 0.4f)), Color.Transparent),
-                            center = Offset(size.width * 0.85f, size.height * 0.75f),
-                            radius = size.width * 0.75f
+                            colors = listOf(primaryColor.copy(alpha = (0.20f * (1f - bgTransparency * 0.3f)).coerceIn(0.06f, 0.28f)), Color.Transparent),
+                            center = Offset(size.width * 0.5f, size.height * 0.95f),
+                            radius = size.width * 0.65f
                         )
                     )
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(primaryColor.copy(alpha = 0.15f), Color.Transparent),
-                            center = Offset(size.width * 0.5f, size.height * 0.95f),
-                            radius = size.width * 0.6f
+                    // Frosted Glass Top Sheen & Subtle Diffusion Texture
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            colors = if (isDarkMode) listOf(
+                                Color.White.copy(alpha = 0.04f),
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.15f)
+                            ) else listOf(
+                                Color.White.copy(alpha = 0.35f),
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.05f)
+                            )
                         )
                     )
                 }
@@ -274,8 +293,8 @@ fun HarmoniMainScreen(viewModel: MediaViewModel) {
                             // Full-Width Edge-to-Edge Frosted Acrylic Navbar (Nempel Batas Pinggir)
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
-                                color = if (isDarkMode) Color(0xFF131218).copy(alpha = (0.82f - bgTransparency * 0.5f).coerceAtLeast(0.20f))
-                                        else Color(0xFFFFFFFF).copy(alpha = (0.88f - bgTransparency * 0.5f).coerceAtLeast(0.30f)),
+                                color = if (isDarkMode) Color(0xFF131218).copy(alpha = (0.82f - bgTransparency * 0.45f).coerceAtLeast(0.25f))
+                                        else Color(0xFFFFFFFF).copy(alpha = (0.88f - bgTransparency * 0.45f).coerceAtLeast(0.35f)),
                                 tonalElevation = 0.dp,
                                 shadowElevation = 0.dp
                             ) {
@@ -869,7 +888,11 @@ fun StudioDrawerContent(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(if (isSelected) PrimaryGold else CardBackground)
+                        .background(
+                            if (isSelected) PrimaryGold 
+                            else if (IsDarkTheme) Color.White.copy(alpha = 0.08f) 
+                            else Color.Black.copy(alpha = 0.06f)
+                        )
                         .border(1.dp, if (isSelected) PrimaryGold else DividerColor.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
                         .clickable { viewModel.setSleepTimer(min) }
                         .padding(horizontal = 12.dp, vertical = 6.dp)
@@ -878,7 +901,8 @@ fun StudioDrawerContent(
                         text = label,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isSelected) DarkBackground else TextPrimary
+                        color = if (isSelected) Color(0xFF101014) else TextPrimary,
+                        modifier = Modifier.zIndex(1f)
                     )
                 }
             }
@@ -904,7 +928,11 @@ fun StudioDrawerContent(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(if (isSelected) AccentTeal else CardBackground)
+                        .background(
+                            if (isSelected) AccentTeal 
+                            else if (IsDarkTheme) Color.White.copy(alpha = 0.08f) 
+                            else Color.Black.copy(alpha = 0.06f)
+                        )
                         .border(1.dp, if (isSelected) AccentTeal else DividerColor.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
                         .clickable { viewModel.applyPreset(preset) }
                         .padding(horizontal = 12.dp, vertical = 6.dp)
@@ -913,7 +941,8 @@ fun StudioDrawerContent(
                         text = preset,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isSelected) DarkBackground else TextPrimary
+                        color = if (isSelected) Color(0xFF101014) else TextPrimary,
+                        modifier = Modifier.zIndex(1f)
                     )
                 }
             }
@@ -991,7 +1020,7 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                     colors = ButtonDefaults.buttonColors(containerColor = PrimaryGold),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("Hapus", color = DarkBackground, fontWeight = FontWeight.Bold)
+                    Text("Hapus", color = Color(0xFF101014), fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -1153,7 +1182,7 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(
                             text = "Masukkan atau pilih alamat folder internal untuk memuat berkas audio/video secara massal ke aplikasi:",
-                            color = Color.White,
+                            color = TextPrimary,
                             fontSize = 12.sp
                         )
                         OutlinedTextField(
@@ -1161,8 +1190,8 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                             onValueChange = { customFolderPath = it },
                             label = { Text("Alamat Path Folder") },
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary,
                                 focusedBorderColor = PrimaryGold
                             ),
                             shape = RoundedCornerShape(8.dp),
@@ -1204,9 +1233,9 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.LibraryMusic, contentDescription = null, modifier = Modifier.size(16.dp), tint = DarkBackground)
+                                    Icon(Icons.Default.LibraryMusic, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFF101014))
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Pilih Berkas", color = DarkBackground, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    Text("Pilih Berkas", color = Color(0xFF101014), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
 
@@ -1219,9 +1248,9 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(16.dp), tint = DarkBackground)
+                                    Icon(Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFF101014))
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Pilih Folder", color = DarkBackground, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    Text("Pilih Folder", color = Color(0xFF101014), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -1235,12 +1264,12 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = PrimaryGold)
                     ) {
-                        Text("Pindai Sekarang", color = DarkBackground, fontWeight = FontWeight.Bold)
+                        Text("Pindai Sekarang", color = Color(0xFF101014), fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showFolderScannerDialog = false }) {
-                        Text("Batal", color = Color.White)
+                        Text("Batal", color = TextPrimary)
                     }
                 },
                 containerColor = CardBackground
@@ -1249,7 +1278,7 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Filtering Chips Row
+        // Filtering Chips Row (Ensured crystal clear text above background on any transparency)
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth()
@@ -1260,17 +1289,26 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
-                        .background(if (selected) PrimaryGold else Color.Transparent)
-                        .border(1.dp, if (selected) PrimaryGold else DividerColor.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
+                        .background(
+                            if (selected) PrimaryGold 
+                            else if (IsDarkTheme) Color.White.copy(alpha = 0.08f) 
+                            else Color.Black.copy(alpha = 0.06f)
+                        )
+                        .border(
+                            1.2.dp,
+                            if (selected) PrimaryGold else DividerColor.copy(alpha = 0.45f),
+                            RoundedCornerShape(20.dp)
+                        )
                         .clickable { groupSelection = chip }
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = chip,
-                        color = if (selected) DarkBackground else TextPrimary,
+                        color = if (selected) Color(0xFF101014) else TextPrimary,
                         fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.zIndex(1f)
                     )
                 }
             }
@@ -1560,7 +1598,7 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(Icons.Outlined.MusicNote, contentDescription = null, tint = DividerColor, modifier = Modifier.size(80.dp))
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Tidak Ada Lagu Diputar", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text("Tidak Ada Lagu Diputar", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 Text("Pilih lagu favoritmu di Pustaka untuk mulai mendengarkan.", color = UnselectedWhite, fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 32.dp))
             }
         }
@@ -1794,9 +1832,9 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                             colors = ButtonDefaults.buttonColors(containerColor = PrimaryGold),
                                             shape = RoundedCornerShape(50.dp)
                                         ) {
-                                            Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = DarkBackground, modifier = Modifier.size(16.dp))
+                                            Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Color(0xFF101014), modifier = Modifier.size(16.dp))
                                             Spacer(modifier = Modifier.width(6.dp))
-                                            Text("Pembuat Lirik AI Gemini", color = DarkBackground, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                            Text("Pembuat Lirik AI Gemini", color = Color(0xFF101014), fontWeight = FontWeight.Bold, fontSize = 11.sp)
                                         }
                                     }
                                 } else {
@@ -2051,7 +2089,7 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                     Text(
                                         text = preset,
                                         fontSize = 12.sp,
-                                        color = if (selected) DarkBackground else Color.White,
+                                        color = if (selected) Color(0xFF101014) else TextPrimary,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
@@ -2074,7 +2112,7 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    Text(bandName, fontSize = 10.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                                    Text(bandName, fontSize = 10.sp, color = TextPrimary, fontWeight = FontWeight.Bold)
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Box(
                                         modifier = Modifier
@@ -2124,7 +2162,7 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                             modifier = Modifier.size(18.dp)
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text("VOLUME AUDIO UTAMA", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                                        Text("VOLUME AUDIO UTAMA", fontSize = 11.sp, color = TextPrimary, fontWeight = FontWeight.Bold)
                                     }
                                     Text("${(volume * 100).toInt()}%", fontSize = 11.sp, color = PrimaryGold, fontWeight = FontWeight.ExtraBold)
                                 }
@@ -2160,7 +2198,7 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                             modifier = Modifier.size(18.dp)
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text("VOLUME VIDEO LATAR", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                                        Text("VOLUME VIDEO LATAR", fontSize = 11.sp, color = TextPrimary, fontWeight = FontWeight.Bold)
                                     }
                                     Text("${(videoVolume * 100).toInt()}%", fontSize = 11.sp, color = AccentTeal, fontWeight = FontWeight.ExtraBold)
                                 }
@@ -2271,7 +2309,7 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(10.dp)
                             ) {
-                                Text("Set Titik A", color = DarkBackground, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                Text("Set Titik A", color = Color(0xFF101014), fontWeight = FontWeight.Bold, fontSize = 11.sp)
                             }
 
                             Button(
@@ -2281,7 +2319,7 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(10.dp)
                             ) {
-                                Text("Set Titik B", color = DarkBackground, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                Text("Set Titik B", color = Color(0xFF101014), fontWeight = FontWeight.Bold, fontSize = 11.sp)
                             }
                         }
 
@@ -2327,7 +2365,7 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("KECEPATAN TEMPO", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.White)
+                            Text("KECEPATAN TEMPO", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = TextPrimary)
                             Text("${playbackSpeed}x", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = AccentTeal)
                         }
                         Spacer(modifier = Modifier.height(12.dp))
@@ -2382,7 +2420,7 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                         colors = RadioButtonDefaults.colors(selectedColor = PrimaryGold, unselectedColor = UnselectedWhite)
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
-                                    Text(label, color = if (isSelected) PrimaryGold else Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    Text(label, color = if (isSelected) PrimaryGold else TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -2407,7 +2445,7 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                         colors = RadioButtonDefaults.colors(selectedColor = PrimaryGold, unselectedColor = UnselectedWhite)
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
-                                    Text(label, color = if (isSelected) PrimaryGold else Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    Text(label, color = if (isSelected) PrimaryGold else TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -2448,32 +2486,32 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                         value = newTitle,
                         onValueChange = { newTitle = it },
                         label = { Text("Judul Lagu") },
-                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White)
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary)
                     )
                     OutlinedTextField(
                         value = newArtist,
                         onValueChange = { newArtist = it },
                         label = { Text("Penyanyi") },
-                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White)
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary)
                     )
                     OutlinedTextField(
                         value = newAlbum,
                         onValueChange = { newAlbum = it },
                         label = { Text("Sampul Album") },
-                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White)
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary)
                     )
                     OutlinedTextField(
                         value = newGenre,
                         onValueChange = { newGenre = it },
                         label = { Text("Genre") },
-                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White)
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary)
                     )
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         OutlinedTextField(
                             value = newImageUrl,
                             onValueChange = { newImageUrl = it },
                             label = { Text("URL Foto Musik (Background)") },
-                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White),
+                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary),
                             modifier = Modifier.fillMaxWidth()
                         )
                         Button(
@@ -2481,9 +2519,9 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                             colors = ButtonDefaults.buttonColors(containerColor = AccentTeal),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = DarkBackground, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = Color(0xFF101014), modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Pilih Gambar Dari Galeri HP", color = DarkBackground, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                            Text("Pilih Gambar Dari Galeri HP", color = Color(0xFF101014), fontWeight = FontWeight.Bold, fontSize = 11.sp)
                         }
                     }
                     OutlinedTextField(
@@ -2491,7 +2529,7 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                         onValueChange = { newLyrics = it },
                         label = { Text("Lirik Sychronized (LRC)") },
                         maxLines = 4,
-                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White)
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary)
                     )
 
                     Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
@@ -2499,7 +2537,7 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                             showEditorDrawer = false 
                             tempPickUrl = null
                         }) {
-                            Text("Batal", color = Color.White)
+                            Text("Batal", color = TextPrimary)
                         }
                         Button(
                             onClick = {
@@ -2509,7 +2547,7 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = PrimaryGold)
                         ) {
-                            Text("Simpan", color = DarkBackground, fontWeight = FontWeight.Bold)
+                            Text("Simpan", color = Color(0xFF101014), fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -2623,17 +2661,26 @@ fun SearchScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
-                        .background(if (isSelected) PrimaryGold else Color.Transparent)
-                        .border(1.dp, if (isSelected) PrimaryGold else DividerColor.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
+                        .background(
+                            if (isSelected) PrimaryGold 
+                            else if (IsDarkTheme) Color.White.copy(alpha = 0.08f) 
+                            else Color.Black.copy(alpha = 0.06f)
+                        )
+                        .border(
+                            1.2.dp,
+                            if (isSelected) PrimaryGold else DividerColor.copy(alpha = 0.45f),
+                            RoundedCornerShape(20.dp)
+                        )
                         .clickable { selectedFilter = filter }
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = filter,
-                        color = if (isSelected) DarkBackground else TextPrimary,
+                        color = if (isSelected) Color(0xFF101014) else TextPrimary,
                         fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.zIndex(1f)
                     )
                 }
             }
@@ -2987,12 +3034,12 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
     if (showSpeedDialog) {
         AlertDialog(
             onDismissRequest = { showSpeedDialog = false },
-            containerColor = DarkBackground,
+            containerColor = CardBackground,
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Speed, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(24.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Kecepatan Putar Video", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text("Kecepatan Putar Video", color = PrimaryGold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             },
             text = {
@@ -3032,7 +3079,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                         modifier = Modifier.weight(1f),
                                         colors = ButtonDefaults.outlinedButtonColors(
                                             containerColor = if (isSelected) AccentTeal.copy(alpha = 0.25f) else Color.Transparent,
-                                            contentColor = if (isSelected) AccentTeal else Color.White
+                                            contentColor = if (isSelected) AccentTeal else TextPrimary
                                         ),
                                         border = androidx.compose.foundation.BorderStroke(
                                             1.dp,
@@ -3066,7 +3113,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Kustom Kecepatan:", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("Kustom Kecepatan:", color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         Text(
                             "%.2fx".format(videoPlaybackSpeed),
                             color = PrimaryGold,
@@ -3092,7 +3139,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                     onClick = { showSpeedDialog = false },
                     colors = ButtonDefaults.buttonColors(containerColor = PrimaryGold)
                 ) {
-                    Text("Tutup", color = DarkBackground, fontWeight = FontWeight.Bold)
+                    Text("Tutup", color = Color(0xFF101014), fontWeight = FontWeight.Bold)
                 }
             }
         )
@@ -3124,7 +3171,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                 ) {
                     Icon(Icons.Default.MovieFilter, contentDescription = null, tint = DividerColor, modifier = Modifier.size(80.dp))
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Pustaka Video Kosong", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text("Pustaka Video Kosong", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     Text("Pilih video atau folder video menggunakan tombol SAF di bawah:", color = UnselectedWhite, fontSize = 12.sp, textAlign = TextAlign.Center)
                     Spacer(modifier = Modifier.height(16.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -3132,13 +3179,13 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                             onClick = { videoSingleFilePicker.launch(arrayOf("video/*")) },
                             colors = ButtonDefaults.buttonColors(containerColor = AccentTeal)
                         ) {
-                            Text("Buka Berkas", color = DarkBackground, fontWeight = FontWeight.Bold)
+                            Text("Buka Berkas", color = Color(0xFF101014), fontWeight = FontWeight.Bold)
                         }
                         Button(
                             onClick = { videoFolderPicker.launch(null) },
                             colors = ButtonDefaults.buttonColors(containerColor = PrimaryGold)
                         ) {
-                            Text("Pilih Folder", color = DarkBackground, fontWeight = FontWeight.Bold)
+                            Text("Pilih Folder", color = Color(0xFF101014), fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -3276,7 +3323,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                             ) {
                                 Text(
                                     text = track.title,
-                                    color = Color.White,
+                                    color = TextPrimary,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.sp,
                                     maxLines = 1,
@@ -3305,7 +3352,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                             }
                         }
 
-                        // ROW 2: Bar Baru di Bawah Nama File (Volume, Acak, Rotasi, Kecepatan/Select, Kunci)
+                        // ROW 2: Bar Baru di Bawah Nama File (Volume, Acak, Rotasi, Kecepatan, Kunci - Seragam tanpa border berlebih)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -3330,7 +3377,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 Icon(
                                     imageVector = if (videoVolume == 0f) Icons.Default.VolumeOff else if (videoVolume < 0.5f) Icons.Default.VolumeDown else Icons.Default.VolumeUp,
                                     contentDescription = "Pengaturan Volume",
-                                    tint = if (showHeaderVolumeSlider) AccentTeal else Color.White,
+                                    tint = if (showHeaderVolumeSlider) AccentTeal else TextPrimary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -3348,7 +3395,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 Icon(
                                     imageVector = Icons.Default.Shuffle,
                                     contentDescription = "Acak Video",
-                                    tint = if (isVideoShuffle) AccentTeal else Color.White,
+                                    tint = if (isVideoShuffle) AccentTeal else TextPrimary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -3374,12 +3421,12 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 Icon(
                                     imageVector = if (viewModel.isVideoAutoRotate) Icons.Default.ScreenRotation else Icons.Default.ScreenLockRotation,
                                     contentDescription = "Rotasi Otomatis",
-                                    tint = if (viewModel.isVideoAutoRotate) AccentTeal else Color.White,
+                                    tint = if (viewModel.isVideoAutoRotate) AccentTeal else TextPrimary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
 
-                            // 4. Icon Kecepatan Putar / Select Preset (Distinct Cyan/Teal Badge)
+                            // 4. Icon Kecepatan Putar (Seragam tanpa border)
                             IconButton(
                                 onClick = {
                                     interactionTick++
@@ -3387,43 +3434,28 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 },
                                 modifier = Modifier.size(36.dp)
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(AccentTeal.copy(alpha = 0.22f))
-                                        .border(1.2.dp, AccentTeal, RoundedCornerShape(8.dp))
-                                        .padding(horizontal = 5.dp, vertical = 3.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Speed,
-                                        contentDescription = "Kecepatan Video",
-                                        tint = AccentTeal,
-                                        modifier = Modifier.size(13.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(2.dp))
-                                    Text(
-                                        text = if (videoPlaybackSpeed == 1.0f) "1x" else "${videoPlaybackSpeed}x",
-                                        color = AccentTeal,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
+                                Icon(
+                                    imageVector = Icons.Default.Speed,
+                                    contentDescription = "Kecepatan Video",
+                                    tint = if (videoPlaybackSpeed != 1.0f) AccentTeal else TextPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
 
-                            // 5. Icon Kunci Layar (Theme Primary Color)
+                            // 5. Icon Kunci Layar (Seragam tanpa border)
                             IconButton(
                                 onClick = {
                                     interactionTick++
                                     viewModel.isVideoLocked = true
                                 },
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(PrimaryGold.copy(alpha = 0.22f))
-                                    .border(1.2.dp, PrimaryGold, RoundedCornerShape(8.dp))
+                                modifier = Modifier.size(36.dp)
                             ) {
-                                Icon(Icons.Default.LockOpen, contentDescription = "Kunci Layar", tint = PrimaryGold, modifier = Modifier.size(20.dp))
+                                Icon(
+                                    imageVector = Icons.Default.LockOpen,
+                                    contentDescription = "Kunci Layar",
+                                    tint = TextPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
                         }
 
@@ -3481,7 +3513,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     "${(videoVolume * 100).toInt()}%",
-                                    color = Color.White,
+                                    color = TextPrimary,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.ExtraBold
                                 )
@@ -3489,7 +3521,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                         }
                     }
 
-                    // COMPACT BOTTOM PLAYER BAR & CONTROLS (Thinner bar, rounded thumb, volume line removed)
+                    // COMPACT BOTTOM PLAYER BAR & CONTROLS (Thinner bar, rounded thumb)
                     Column(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
@@ -3525,7 +3557,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                         modifier = Modifier
                                             .size(12.dp)
                                             .background(PrimaryGold, CircleShape)
-                                            .border(1.5.dp, Color.White, CircleShape)
+                                            .border(1.5.dp, if (IsDarkTheme) Color.White else Color(0xFF101014), CircleShape)
                                     )
                                 },
                                 track = { sliderState ->
@@ -3546,7 +3578,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                     .padding(horizontal = 2.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(formatMs(currentProg), color = Color.White, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+                                Text(formatMs(currentProg), color = TextPrimary, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
                                 Text(formatMs(currentDur), color = UnselectedWhite, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
                             }
                         }
@@ -3567,7 +3599,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 Icon(
                                     imageVector = if (videoRepeatMode) Icons.Default.RepeatOne else Icons.Default.Repeat,
                                     contentDescription = "Ulang Video",
-                                    tint = if (videoRepeatMode) PrimaryGold else Color.White,
+                                    tint = if (videoRepeatMode) PrimaryGold else TextPrimary,
                                     modifier = Modifier.size(22.dp)
                                 )
                             }
@@ -3577,7 +3609,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 interactionTick++
                                 viewModel.seekVideoRelative(-10000L)
                             }) {
-                                Icon(Icons.Default.Replay10, contentDescription = "Mundur 10 Detik", tint = Color.White, modifier = Modifier.size(24.dp))
+                                Icon(Icons.Default.Replay10, contentDescription = "Mundur 10 Detik", tint = TextPrimary, modifier = Modifier.size(24.dp))
                             }
 
                             // Previous Video
@@ -3585,7 +3617,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 interactionTick++
                                 viewModel.playPreviousVideo()
                             }) {
-                                Icon(Icons.Default.SkipPrevious, contentDescription = "Video Sebelumnya", tint = Color.White, modifier = Modifier.size(28.dp))
+                                Icon(Icons.Default.SkipPrevious, contentDescription = "Video Sebelumnya", tint = TextPrimary, modifier = Modifier.size(28.dp))
                             }
 
                             // Play / Pause Circular Center Button (Theme Primary Color)
@@ -3614,7 +3646,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 interactionTick++
                                 viewModel.playNextVideo()
                             }) {
-                                Icon(Icons.Default.SkipNext, contentDescription = "Video Selanjutnya", tint = Color.White, modifier = Modifier.size(28.dp))
+                                Icon(Icons.Default.SkipNext, contentDescription = "Video Selanjutnya", tint = TextPrimary, modifier = Modifier.size(28.dp))
                             }
 
                             // Forward 10 Seconds
@@ -3622,7 +3654,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 interactionTick++
                                 viewModel.seekVideoRelative(10000L)
                             }) {
-                                Icon(Icons.Default.Forward10, contentDescription = "Maju 10 Detik", tint = Color.White, modifier = Modifier.size(24.dp))
+                                Icon(Icons.Default.Forward10, contentDescription = "Maju 10 Detik", tint = TextPrimary, modifier = Modifier.size(24.dp))
                             }
 
                             // Responsive Orientation-Aware Fullscreen Button (Preserves current portrait or landscape orientation)
@@ -3702,7 +3734,8 @@ fun PlaylistScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                 IconButton(
                     onClick = { viewModel.generateAutoPlaylists() },
                     modifier = Modifier
-                        .background(DividerColor, CircleShape)
+                        .clip(CircleShape)
+                        .background(DividerColor.copy(alpha = 0.5f))
                         .size(40.dp)
                 ) {
                     Icon(Icons.Default.AutoAwesome, contentDescription = "Rekomendasi Genre", tint = PrimaryGold)
@@ -3711,10 +3744,16 @@ fun PlaylistScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                 IconButton(
                     onClick = { showPlaylistNameDialog = true },
                     modifier = Modifier
-                        .background(PrimaryGold, CircleShape)
+                        .clip(CircleShape)
+                        .background(PrimaryGold)
                         .size(40.dp)
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Tambah Manual", tint = DarkBackground)
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = "Tambah Manual",
+                        tint = Color(0xFF101014),
+                        modifier = Modifier.size(24.dp).zIndex(1f)
+                    )
                 }
             }
         }
@@ -3731,7 +3770,7 @@ fun PlaylistScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
                     Icon(Icons.Default.PlaylistAdd, contentDescription = null, tint = DividerColor, modifier = Modifier.size(64.dp))
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Belum ada playlist", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("Belum ada playlist", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text("Ketuk lambang bintang di atas untuk membuat playlist sesuai genre dipilih secara otomatis!", color = UnselectedWhite, textAlign = TextAlign.Center, fontSize = 12.sp)
                 }
@@ -3835,7 +3874,7 @@ fun PlaylistScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                     value = playlistNameInput,
                     onValueChange = { playlistNameInput = it },
                     placeholder = { Text("Nama Playlist...") },
-                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White)
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary)
                 )
             },
             confirmButton = {
@@ -3849,12 +3888,12 @@ fun PlaylistScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = PrimaryGold)
                 ) {
-                    Text("Buat", color = DarkBackground, fontWeight = FontWeight.Bold)
+                    Text("Buat", color = Color(0xFF101014), fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showPlaylistNameDialog = false }) {
-                    Text("Batal", color = Color.White)
+                    Text("Batal", color = TextPrimary)
                 }
             },
             containerColor = CardBackground
@@ -4098,7 +4137,7 @@ fun AddToPlaylistDialog(
         title = { Text("Tambahkan ke Playlist", color = PrimaryGold, fontWeight = FontWeight.Bold, fontSize = 18.sp) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Pilih playlist untuk lagu: \"${track.title}\"", color = Color.White, fontSize = 12.sp)
+                Text("Pilih playlist untuk lagu: \"${track.title}\"", color = TextPrimary, fontSize = 12.sp)
                 
                 // Button to create a new playlist locally
                 Row(
@@ -4124,14 +4163,14 @@ fun AddToPlaylistDialog(
                             value = newPlaylistName,
                             onValueChange = { newPlaylistName = it },
                             placeholder = { Text("Nama playlist baru...", color = UnselectedWhite) },
-                            textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
+                            textStyle = androidx.compose.ui.text.TextStyle(color = TextPrimary),
                             modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = PrimaryGold)
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = PrimaryGold, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary)
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
                             TextButton(onClick = { showCreateDialog = false }) {
-                                Text("Batal", color = Color.White, fontSize = 12.sp)
+                                Text("Batal", color = TextPrimary, fontSize = 12.sp)
                             }
                             Button(
                                 onClick = {
@@ -4143,7 +4182,7 @@ fun AddToPlaylistDialog(
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = PrimaryGold)
                             ) {
-                                Text("Buat", color = DarkBackground, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text("Buat", color = Color(0xFF101014), fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             }
                         }
                     }
@@ -4172,7 +4211,7 @@ fun AddToPlaylistDialog(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.PlaylistPlay, contentDescription = null, tint = PrimaryGold)
                                 Spacer(modifier = Modifier.width(12.dp))
-                                Text(playlist.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Text(playlist.name, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             }
                             Icon(Icons.Default.ChevronRight, contentDescription = null, tint = UnselectedWhite)
                         }
@@ -4183,7 +4222,7 @@ fun AddToPlaylistDialog(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Kembali", color = Color.White)
+                Text("Kembali", color = TextPrimary)
             }
         },
         containerColor = CardBackground

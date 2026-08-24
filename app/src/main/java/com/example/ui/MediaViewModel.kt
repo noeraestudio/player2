@@ -42,7 +42,7 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
     var activeScreen by mutableStateOf("Library")
 
     // Theme Management State (Light/Dark Mode, Presets, Custom Accent, Icon & Text Colors)
-    private val _isDarkMode = MutableStateFlow(true)
+    private val _isDarkMode = MutableStateFlow(false)
     val isDarkMode: StateFlow<Boolean> = _isDarkMode.asStateFlow()
 
     private val _selectedThemeId = MutableStateFlow("Gold") // Gold, Teal, Purple, Crimson, Emerald, Amoled, Blue, Orange
@@ -91,7 +91,7 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun resetTheme() {
-        _isDarkMode.value = true
+        _isDarkMode.value = false
         _selectedThemeId.value = "Gold"
         _customPrimaryColor.value = null
         _customSecondaryColor.value = null

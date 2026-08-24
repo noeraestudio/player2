@@ -305,7 +305,7 @@ class MediaRepository(private val mediaDao: MediaDao) {
         val count = mediaDao.getTracksCount()
         if (count > 0) return@withContext // already seeded
 
-        Log.d("MediaRepository", "Seeding default lossless audio & video items...")
+        Log.d("MediaRepository", "Seeding 1 audio and 1 video sample to save memory...")
 
         val tracks = listOf(
             MediaTrack(
@@ -329,52 +329,8 @@ class MediaRepository(private val mediaDao: MediaDao) {
                     [00:36.00]Di sana ada kemesraan yang indah...
                     [00:44.00]Kemesraan ini... janganlah cepat berlalu...
                     [00:54.00]Kemesraan ini... ingin kukenang selalu...
-                    [01:04.00]Hatiku damai... jiwaku tentram bersamamu...
+                    [00:04.00]Hatiku damai... jiwaku tentram bersamamu...
                     [01:15.00]Hanya bersamamu...
-                """.trimIndent()
-            ),
-            MediaTrack(
-                title = "Bengawan Solo",
-                artist = "Gesang",
-                album = "Kroncong Indonesia",
-                genre = "Kerocong",
-                filePath = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-                isVideo = false,
-                duration = 423000L,
-                format = "WAV",
-                sampleRate = "192.0 kHz",
-                bitRate = "24-bit PCM",
-                imageUrl = "https://images.unsplash.com/photo-1511192336575-5a79af67a629?auto=format&fit=crop&q=80&w=600",
-                lyricsLrc = """
-                    [00:00.00]Harmoni Player - Pemutaran WAV Lossless Studio Master
-                    [00:06.00]Bengawan Solo, riwayatmu kini...
-                    [00:15.00]Sedari dulu jadi perhatian insani...
-                    [00:25.00]Musim kemarau, tak seberapa airmu...
-                    [00:34.00]Dimusim hujan, air meluap sampai jauh...
-                    [00:44.00]Mata airmu dari Solo, terkurung gunung seribu...
-                    [00:54.00]Air mengalir sampai jauh, akhirnya ke laut...
-                """.trimIndent()
-            ),
-            MediaTrack(
-                title = "Cinta Luar Biasa",
-                artist = "Andmesh",
-                album = "Pop Hits",
-                genre = "Pop",
-                filePath = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
-                isVideo = false,
-                duration = 302000L,
-                format = "FLAC",
-                sampleRate = "88.2 kHz",
-                bitRate = "24-bit Hi-Res",
-                imageUrl = "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&q=80&w=600",
-                lyricsLrc = """
-                    [00:00.00]Harmoni Player - ALAC/FLAC High Resolution
-                    [00:04.00]Waktu pertama kali kulihat dirimu hadir
-                    [00:11.00]Rasa ini membara di dalam dada
-                    [00:18.00]Terimalah lagu ini dari orang biasa
-                    [00:26.00]Tapi cintaku padamu luar biasa...
-                    [00:34.00]Karna ku selamanya membencimu dalam diam...
-                    [00:41.00]Ku menyayangimu sepenuh hati...
                 """.trimIndent()
             ),
             MediaTrack(
@@ -395,24 +351,6 @@ class MediaRepository(private val mediaDao: MediaDao) {
                     [00:10.00]Video Trailer Alam HD 1080p
                     [00:20.00]Tonton keindahan padang hijau yang luas...
                     [00:35.00]Bebas hambatan dengan kontrol transisi cepat.
-                """.trimIndent()
-            ),
-            MediaTrack(
-                title = "Ocean Wave Serenade",
-                artist = "Ocean Waves",
-                album = "Relaksasi Meditasi",
-                genre = "Ambient",
-                filePath = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-                isVideo = true,
-                duration = 653000L,
-                format = "MKV",
-                sampleRate = "48.0 kHz",
-                bitRate = "Full HD Dolby Atmos",
-                imageUrl = "https://images.unsplash.com/photo-1505118380757-91f5f5632de0?auto=format&fit=crop&q=80&w=600",
-                lyricsLrc = """
-                    [00:00.00]Klip Relaksasi Suara Laut dan Ombak
-                    [00:06.00]Audio resolusi tinggi dolby surround
-                    [00:15.00]Lepaskan penat, biarkan suara laut menenangkan Anda.
                 """.trimIndent()
             )
         )
