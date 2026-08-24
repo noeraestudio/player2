@@ -1963,13 +1963,13 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                         Icon(Icons.Default.SkipPrevious, contentDescription = "Sebelumnya", tint = TextPrimary, modifier = Modifier.size(34.dp))
                     }
 
-                    // Play/Pause circular container (Distinct Gold with Dark Icon)
+                    // Play/Pause circular container (Theme Primary Color)
                     Box(
                         modifier = Modifier
                             .size(54.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFFFB300))
-                            .border(1.5.dp, Color(0xFFFFD54F), CircleShape)
+                            .background(PrimaryGold)
+                            .border(1.5.dp, PrimaryGold.copy(alpha = 0.6f), CircleShape)
                             .clickable { viewModel.togglePlayPause() },
                         contentAlignment = Alignment.Center
                     ) {
@@ -1986,43 +1986,25 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                         Icon(Icons.Default.SkipNext, contentDescription = "Selanjutnya", tint = TextPrimary, modifier = Modifier.size(34.dp))
                     }
 
-                    // Standard Repeat Mode button (glow for loop-all, text '1' for repeat-one)
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .clickable { viewModel.toggleRepeatMode() },
-                        contentAlignment = Alignment.Center
+                    // Standard Repeat Mode button (RepeatOne / RepeatAll cleanly displayed without background box on number)
+                    IconButton(
+                        onClick = { viewModel.toggleRepeatMode() },
+                        modifier = Modifier.size(40.dp)
                     ) {
                         if (repeatMode == 1) {
-                            // Repeat One: shows "1" inside or on top of loop icon
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.Repeat,
-                                    contentDescription = "Looping Satu Lagu Kunci",
-                                    tint = PrimaryGold,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .size(13.dp)
-                                        .background(PrimaryGold, CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = "1",
-                                        color = DarkBackground,
-                                        fontSize = 8.sp,
-                                        fontWeight = FontWeight.ExtraBold
-                                    )
-                                }
-                            }
+                            // Repeat One: native RepeatOne icon with clear number 1, tinted with theme color
+                            Icon(
+                                imageVector = Icons.Default.RepeatOne,
+                                contentDescription = "Looping Satu Lagu",
+                                tint = PrimaryGold,
+                                modifier = Modifier.size(26.dp)
+                            )
                         } else {
-                            // Repeat All: lights up glowing indicator!
+                            // Repeat All
                             Icon(
                                 imageVector = Icons.Default.Repeat,
-                                contentDescription = "Looping Semua Lagu Aktif",
-                                tint = AccentTeal, // Menyala terang!
+                                contentDescription = "Looping Semua Lagu",
+                                tint = TextPrimary.copy(alpha = 0.65f),
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -3233,10 +3215,10 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                             modifier = Modifier
                                 .size(68.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFE53935))
-                                .border(2.dp, Color.White, CircleShape)
+                                .background(PrimaryGold)
+                                .border(2.dp, Color.White.copy(alpha = 0.85f), CircleShape)
                         ) {
-                            Icon(Icons.Default.Lock, contentDescription = "Buka Kunci Layar", tint = Color.White, modifier = Modifier.size(34.dp))
+                            Icon(Icons.Default.Lock, contentDescription = "Buka Kunci Layar", tint = Color(0xFF101014), modifier = Modifier.size(34.dp))
                         }
                     }
                 }
@@ -3429,7 +3411,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 }
                             }
 
-                            // 5. Icon Kunci Layar (Distinct Red Badge)
+                            // 5. Icon Kunci Layar (Theme Primary Color)
                             IconButton(
                                 onClick = {
                                     interactionTick++
@@ -3438,10 +3420,10 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 modifier = Modifier
                                     .size(36.dp)
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFFE53935).copy(alpha = 0.22f))
-                                    .border(1.2.dp, Color(0xFFE53935), RoundedCornerShape(8.dp))
+                                    .background(PrimaryGold.copy(alpha = 0.22f))
+                                    .border(1.2.dp, PrimaryGold, RoundedCornerShape(8.dp))
                             ) {
-                                Icon(Icons.Default.LockOpen, contentDescription = "Kunci Layar", tint = Color(0xFFE53935), modifier = Modifier.size(20.dp))
+                                Icon(Icons.Default.LockOpen, contentDescription = "Kunci Layar", tint = PrimaryGold, modifier = Modifier.size(20.dp))
                             }
                         }
 
@@ -3585,8 +3567,8 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 Icon(
                                     imageVector = if (videoRepeatMode) Icons.Default.RepeatOne else Icons.Default.Repeat,
                                     contentDescription = "Ulang Video",
-                                    tint = if (videoRepeatMode) AccentTeal else Color.White,
-                                    modifier = Modifier.size(20.dp)
+                                    tint = if (videoRepeatMode) PrimaryGold else Color.White,
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
 
@@ -3606,13 +3588,13 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 Icon(Icons.Default.SkipPrevious, contentDescription = "Video Sebelumnya", tint = Color.White, modifier = Modifier.size(28.dp))
                             }
 
-                            // Play / Pause Circular Center Button (Distinct High-Contrast Gold Fill)
+                            // Play / Pause Circular Center Button (Theme Primary Color)
                             Box(
                                 modifier = Modifier
                                     .size(48.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFFFFB300))
-                                    .border(1.5.dp, Color(0xFFFFD54F), CircleShape)
+                                    .background(PrimaryGold)
+                                    .border(1.5.dp, PrimaryGold.copy(alpha = 0.6f), CircleShape)
                                     .clickable {
                                         interactionTick++
                                         viewModel.toggleVideoPlayPause()
