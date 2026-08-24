@@ -197,13 +197,17 @@ fun HarmoniMainScreen(viewModel: MediaViewModel) {
     val primaryColor = customPrimaryColor?.let { Color(it) } ?: presetPrimary
     val secondaryColor = customSecondaryColor?.let { Color(it) } ?: presetSecondary
 
-    // Dynamic Acrylic Transparency with Frosted Glass Blur Texture
-    val effectiveBgAlpha = (1f - bgTransparency).coerceIn(0f, 1f)
+    // Dynamic Fluent Acrylic & Frosted Glass Box Model
     val baseDark = Color(0xFF101014)
     val baseLight = Color(0xFFF4F4F6)
-    val backgroundColor = if (isDarkMode) baseDark.copy(alpha = (effectiveBgAlpha * 0.7f).coerceAtLeast(0.05f)) else baseLight.copy(alpha = (effectiveBgAlpha * 0.7f).coerceAtLeast(0.08f))
-    val cardColor = if (isDarkMode) Color(0xFF1C1A24).copy(alpha = (0.55f - bgTransparency * 0.35f).coerceAtLeast(0.12f)) else Color(0xFFFFFFFF).copy(alpha = (0.65f - bgTransparency * 0.35f).coerceAtLeast(0.18f))
-    val surfaceColor = if (isDarkMode) Color(0xFF18171E).copy(alpha = 0.95f) else Color(0xFFFFFFFF).copy(alpha = 0.96f)
+    val cardDark = Color(0xFF1C1A24)
+    val cardLight = Color(0xFFFFFFFF)
+
+    // Solid default when bgTransparency is 0f; Frosted glass box with minimum 65% opacity when > 0f so text is always clear
+    val glassCardAlpha = if (bgTransparency <= 0f) 1f else (1f - bgTransparency * 0.35f).coerceIn(0.65f, 1f)
+    val backgroundColor = if (isDarkMode) baseDark else baseLight
+    val cardColor = if (isDarkMode) cardDark.copy(alpha = glassCardAlpha) else cardLight.copy(alpha = glassCardAlpha)
+    val surfaceColor = if (isDarkMode) Color(0xFF18171E) else Color(0xFFFFFFFF)
     val textPrimaryColor = if (isDarkMode) Color(0xFFFFFFFF) else Color(0xFF121118)
     val textSecondaryColor = if (isDarkMode) Color(0xFFA09CA8) else Color(0xFF555260)
     val dividerColor = if (isDarkMode) Color(0xFF423E4C).copy(alpha = 0.5f) else Color(0xFFBFB9C9).copy(alpha = 0.6f)
@@ -240,63 +244,68 @@ fun HarmoniMainScreen(viewModel: MediaViewModel) {
         ) {
         Surface(
             modifier = Modifier.fillMaxSize(),
-            color = Color.Black
+            color = if (isDarkMode) Color(0xFF101014) else Color(0xFFF4F4F6)
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 // Windows 11 Fluent Bloom / Frosted Acrylic Blur Canvas
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     // Base Canvas Tint
-                    drawRect(color = if (isDarkMode) Color(0xFF0D0C12) else Color(0xFFECECEF))
+                    drawRect(color = if (isDarkMode) Color(0xFF101014) else Color(0xFFF4F4F6))
                     
-                    // Acrylic Ambient Diffuse Glow Blobs (Simulating rich frosted backdrop)
+                    // Acrylic Ambient Diffuse Glow Blobs (Reveals glowing ambient bloom as transparency increases)
+                    val glowScale = if (bgTransparency <= 0f) 0.15f else (0.18f + bgTransparency * 0.45f).coerceIn(0.18f, 0.65f)
                     drawCircle(
                         brush = Brush.radialGradient(
-                            colors = listOf(primaryColor.copy(alpha = (0.35f * (1f - bgTransparency * 0.3f)).coerceIn(0.10f, 0.45f)), Color.Transparent),
+                            colors = listOf(primaryColor.copy(alpha = (glowScale * 0.85f).coerceIn(0.10f, 0.55f)), Color.Transparent),
                             center = Offset(size.width * 0.2f, size.height * 0.15f),
                             radius = size.width * 0.85f
                         )
                     )
                     drawCircle(
                         brush = Brush.radialGradient(
-                            colors = listOf(secondaryColor.copy(alpha = (0.28f * (1f - bgTransparency * 0.3f)).coerceIn(0.08f, 0.35f)), Color.Transparent),
+                            colors = listOf(secondaryColor.copy(alpha = (glowScale * 0.70f).coerceIn(0.08f, 0.45f)), Color.Transparent),
                             center = Offset(size.width * 0.85f, size.height * 0.75f),
                             radius = size.width * 0.8f
                         )
                     )
                     drawCircle(
                         brush = Brush.radialGradient(
-                            colors = listOf(primaryColor.copy(alpha = (0.20f * (1f - bgTransparency * 0.3f)).coerceIn(0.06f, 0.28f)), Color.Transparent),
+                            colors = listOf(primaryColor.copy(alpha = (glowScale * 0.50f).coerceIn(0.06f, 0.35f)), Color.Transparent),
                             center = Offset(size.width * 0.5f, size.height * 0.95f),
                             radius = size.width * 0.65f
                         )
                     )
-                    // Frosted Glass Top Sheen & Subtle Diffusion Texture
-                    drawRect(
-                        brush = Brush.verticalGradient(
-                            colors = if (isDarkMode) listOf(
-                                Color.White.copy(alpha = 0.04f),
-                                Color.Transparent,
-                                Color.Black.copy(alpha = 0.15f)
-                            ) else listOf(
-                                Color.White.copy(alpha = 0.35f),
-                                Color.Transparent,
-                                Color.Black.copy(alpha = 0.05f)
+                    // Frosted Glass Top Sheen
+                    if (bgTransparency > 0f) {
+                        drawRect(
+                            brush = Brush.verticalGradient(
+                                colors = if (isDarkMode) listOf(
+                                    Color.White.copy(alpha = 0.05f * bgTransparency),
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.18f * bgTransparency)
+                                ) else listOf(
+                                    Color.White.copy(alpha = 0.38f * bgTransparency),
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.06f * bgTransparency)
+                                )
                             )
                         )
-                    )
+                    }
                 }
 
                 Scaffold(
                     containerColor = Color.Transparent,
                     bottomBar = {
                         if (!viewModel.isVideoLocked && !(activeScreen == "Video" && viewModel.isVideoFullscreen)) {
-                            // Full-Width Edge-to-Edge Frosted Acrylic Navbar (Nempel Batas Pinggir)
+                            val navAlpha = if (bgTransparency <= 0f) 1f else (1f - bgTransparency * 0.30f).coerceIn(0.70f, 1f)
+                            val navContainerColor = if (isDarkMode) Color(0xFF131218).copy(alpha = navAlpha)
+                                                    else Color(0xFFFFFFFF).copy(alpha = navAlpha)
+                            // Full-Width Edge-to-Edge Solid / Frosted Acrylic Navbar
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
-                                color = if (isDarkMode) Color(0xFF131218).copy(alpha = (0.82f - bgTransparency * 0.45f).coerceAtLeast(0.25f))
-                                        else Color(0xFFFFFFFF).copy(alpha = (0.88f - bgTransparency * 0.45f).coerceAtLeast(0.35f)),
-                                tonalElevation = 0.dp,
-                                shadowElevation = 0.dp
+                                color = navContainerColor,
+                                tonalElevation = if (bgTransparency <= 0f) 3.dp else 0.dp,
+                                shadowElevation = if (bgTransparency <= 0f) 4.dp else 0.dp
                             ) {
                                 Box(
                                     modifier = Modifier
@@ -426,12 +435,13 @@ fun HarmoniMainScreen(viewModel: MediaViewModel) {
                             val track = currentTrack!!
                             Card(
                                 shape = RoundedCornerShape(16.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                                colors = CardDefaults.cardColors(containerColor = CardBackground),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
                                 modifier = Modifier
                                     .align(Alignment.BottomCenter)
                                     .padding(horizontal = 16.dp, vertical = 8.dp)
                                     .clickable { viewModel.activeScreen = if (track.isVideo) "Video" else "Player" }
-                                    .border(1.dp, PrimaryGold.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                                    .border(1.2.dp, PrimaryGold.copy(alpha = 0.55f), RoundedCornerShape(16.dp))
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -1100,26 +1110,30 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                 IconButton(
                     onClick = onOpenDrawer,
                     modifier = Modifier
-                        .background(DividerColor, CircleShape)
-                        .size(44.dp)
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(if (IsDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
+                        .border(1.dp, DividerColor.copy(alpha = 0.35f), CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Menu,
                         contentDescription = "Menu Slider",
-                        tint = PrimaryGold
+                        tint = PrimaryGold,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(10.dp))
                 Column {
                     Text(
                         text = "NOERAE PLAYER",
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 22.sp,
-                        color = PrimaryGold
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = PrimaryGold,
+                        letterSpacing = 0.5.sp
                     )
                     Text(
-                        text = "Pustaka Daftar Lagu (${tracks.size} item)",
-                        fontSize = 12.sp,
+                        text = "Pustaka Lagu • ${tracks.size} item",
+                        fontSize = 11.sp,
                         color = UnselectedWhite
                     )
                 }
@@ -1129,13 +1143,15 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                 IconButton(
                     onClick = { showFolderScannerDialog = true },
                     modifier = Modifier
-                        .background(DividerColor, CircleShape)
-                        .size(44.dp)
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(if (IsDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
+                        .border(1.dp, DividerColor.copy(alpha = 0.35f), CircleShape)
                 ) {
-                    Icon(Icons.Default.Folder, contentDescription = "Muat Folder Penyimpanan", tint = PrimaryGold)
+                    Icon(Icons.Default.Folder, contentDescription = "Muat Folder Penyimpanan", tint = PrimaryGold, modifier = Modifier.size(20.dp))
                 }
 
-                // Automatic scan button
+                // Automatic scan button (Reload Pustaka)
                 IconButton(
                     onClick = {
                         val permissionsToRequest = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
@@ -1164,10 +1180,12 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                         }
                     },
                     modifier = Modifier
-                        .background(DividerColor, CircleShape)
-                        .size(44.dp)
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(if (IsDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
+                        .border(1.dp, DividerColor.copy(alpha = 0.35f), CircleShape)
                 ) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Pindai Perangkat", tint = PrimaryGold)
+                    Icon(Icons.Default.Refresh, contentDescription = "Pindai Perangkat", tint = PrimaryGold, modifier = Modifier.size(20.dp))
                 }
             }
         }
@@ -1419,11 +1437,12 @@ fun TrackItemCard(
         // Foreground Card that can be clicked, long-pressed, or dragged horizontally
         Card(
             shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+            colors = CardDefaults.cardColors(containerColor = CardBackground),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .offset { IntOffset(animatedOffsetX.roundToInt(), 0) }
-                .border(1.dp, DividerColor.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                .border(1.dp, DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f), RoundedCornerShape(12.dp))
                 .pointerInput(track.id) {
                     detectHorizontalDragGestures(
                         onDragEnd = {
@@ -1674,13 +1693,27 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = onOpenDrawer) {
-                        Icon(Icons.Default.Menu, contentDescription = "Menu Pengaturan", tint = PrimaryGold)
+                    IconButton(
+                        onClick = onOpenDrawer,
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(if (IsDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
+                            .border(1.dp, DividerColor.copy(alpha = 0.35f), CircleShape)
+                    ) {
+                        Icon(Icons.Default.Menu, contentDescription = "Menu Pengaturan", tint = PrimaryGold, modifier = Modifier.size(20.dp))
                     }
-                    Text("NOERAE PLAYER", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = PrimaryGold, letterSpacing = 2.sp)
+                    Text("NOERAE PLAYER", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = PrimaryGold, letterSpacing = 1.sp)
                     Box {
-                        IconButton(onClick = { showMenuDropdown = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "Pilihan Menu", tint = TextPrimary)
+                        IconButton(
+                            onClick = { showMenuDropdown = true },
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(if (IsDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
+                                .border(1.dp, DividerColor.copy(alpha = 0.35f), CircleShape)
+                        ) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "Pilihan Menu", tint = TextPrimary, modifier = Modifier.size(20.dp))
                         }
                         DropdownMenu(
                             expanded = showMenuDropdown,
@@ -1805,12 +1838,13 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                         )
                         
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                            colors = CardDefaults.cardColors(containerColor = CardBackground),
                             shape = RoundedCornerShape(16.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f)
-                                .border(1.dp, DividerColor.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
+                                .border(1.dp, DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f), RoundedCornerShape(16.dp))
                         ) {
                             Box(modifier = Modifier.fillMaxSize()) {
                                 if (lyricsLines.isEmpty()) {
@@ -2596,38 +2630,42 @@ fun SearchScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
             IconButton(
                 onClick = onOpenDrawer,
                 modifier = Modifier
-                    .background(DividerColor, CircleShape)
-                    .size(44.dp)
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .background(if (IsDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
+                    .border(1.dp, DividerColor.copy(alpha = 0.35f), CircleShape)
             ) {
                 Icon(
                     imageVector = Icons.Default.Menu,
                     contentDescription = "Menu Slider",
-                    tint = PrimaryGold
+                    tint = PrimaryGold,
+                    modifier = Modifier.size(20.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(10.dp))
             Column {
                 Text(
                     text = "Pencarian Media",
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 22.sp,
-                    color = TextPrimary
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = TextPrimary,
+                    letterSpacing = 0.5.sp
                 )
                 Text(
-                    text = "Cari lagu, video, atau format di perangkat",
-                    fontSize = 12.sp,
+                    text = "Cari lagu, video, atau format",
+                    fontSize = 11.sp,
                     color = UnselectedWhite
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
         // Prominent Search Bar
         OutlinedTextField(
             value = query,
             onValueChange = { query = it },
-            placeholder = { Text("Ketik judul lagu, video, atau format...", color = UnselectedWhite) },
+            placeholder = { Text("Ketik judul lagu, video, atau format...", color = UnselectedWhite, fontSize = 13.sp) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = PrimaryGold) },
             trailingIcon = {
                 if (query.isNotEmpty()) {
@@ -2638,13 +2676,13 @@ fun SearchScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
             },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = PrimaryGold,
-                unfocusedBorderColor = DividerColor.copy(alpha = 0.4f),
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent,
+                unfocusedBorderColor = DividerColor.copy(alpha = 0.45f),
+                focusedContainerColor = CardBackground,
+                unfocusedContainerColor = CardBackground,
                 focusedTextColor = TextPrimary,
                 unfocusedTextColor = TextPrimary
             ),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(14.dp),
             modifier = Modifier.fillMaxWidth().testTag("search_field_main")
         )
 
@@ -3154,13 +3192,16 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(16.dp)
-                        .background(DividerColor, CircleShape)
-                        .size(44.dp)
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(if (IsDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
+                        .border(1.dp, DividerColor.copy(alpha = 0.35f), CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Menu,
                         contentDescription = "Menu Slider",
-                        tint = PrimaryGold
+                        tint = PrimaryGold,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
                 Column(
@@ -3715,50 +3756,53 @@ fun PlaylistScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                 IconButton(
                     onClick = onOpenDrawer,
                     modifier = Modifier
-                        .background(DividerColor, CircleShape)
-                        .size(40.dp)
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(if (IsDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
+                        .border(1.dp, DividerColor.copy(alpha = 0.35f), CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Menu,
                         contentDescription = "Menu Slider",
-                        tint = PrimaryGold
+                        tint = PrimaryGold,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
                 Spacer(modifier = Modifier.width(10.dp))
                 Column {
-                    Text("Playlist NOERAE", fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = PrimaryGold)
+                    Text("Playlist NOERAE", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = PrimaryGold, letterSpacing = 0.5.sp)
                     Text("Kategori otomatis & manual", fontSize = 11.sp, color = UnselectedWhite)
                 }
             }
-            Row {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 IconButton(
                     onClick = { viewModel.generateAutoPlaylists() },
                     modifier = Modifier
+                        .size(38.dp)
                         .clip(CircleShape)
-                        .background(DividerColor.copy(alpha = 0.5f))
-                        .size(40.dp)
+                        .background(if (IsDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
+                        .border(1.dp, DividerColor.copy(alpha = 0.35f), CircleShape)
                 ) {
-                    Icon(Icons.Default.AutoAwesome, contentDescription = "Rekomendasi Genre", tint = PrimaryGold)
+                    Icon(Icons.Default.AutoAwesome, contentDescription = "Rekomendasi Genre", tint = PrimaryGold, modifier = Modifier.size(20.dp))
                 }
-                Spacer(modifier = Modifier.width(8.dp))
                 IconButton(
                     onClick = { showPlaylistNameDialog = true },
                     modifier = Modifier
+                        .size(38.dp)
                         .clip(CircleShape)
                         .background(PrimaryGold)
-                        .size(40.dp)
                 ) {
                     Icon(
                         Icons.Default.Add,
                         contentDescription = "Tambah Manual",
                         tint = Color(0xFF101014),
-                        modifier = Modifier.size(24.dp).zIndex(1f)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
         if (playlists.isEmpty()) {
             Box(
@@ -3783,11 +3827,12 @@ fun PlaylistScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                 items(playlists) { playlist ->
                     val isExpanded = expandedPlaylistId == playlist.id
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                        colors = CardDefaults.cardColors(containerColor = CardBackground),
                         shape = RoundedCornerShape(12.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .border(1.dp, DividerColor.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                            .border(1.dp, DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f), RoundedCornerShape(12.dp))
                             .clickable { expandedPlaylistId = if (isExpanded) null else playlist.id }
                     ) {
                         Column(

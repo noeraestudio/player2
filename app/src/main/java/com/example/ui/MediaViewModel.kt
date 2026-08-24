@@ -97,10 +97,11 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
         _customSecondaryColor.value = null
         _customTextColor.value = null
         _customIconColor.value = null
+        _backgroundTransparency.value = 0f
     }
 
     // Background Transparency Setting (0f = opaque solid, 1f = fully transparent glass)
-    private val _backgroundTransparency = MutableStateFlow(0.85f)
+    private val _backgroundTransparency = MutableStateFlow(0f)
     val backgroundTransparency: StateFlow<Float> = _backgroundTransparency.asStateFlow()
 
     fun setBackgroundTransparency(transparency: Float) {
