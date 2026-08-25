@@ -521,6 +521,7 @@ fun HarmoniMainScreen(viewModel: MediaViewModel) {
 }
 
 // --- CUSTOM CIRCULAR THUMB & SLENDER TRACK SLIDER ---
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RoundSlider(
     value: Float,
@@ -1824,95 +1825,96 @@ fun TrackItemCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .border(1.dp, DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f), RoundedCornerShape(12.dp))
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
-            )
+            .pointerInput(track.id) {
+                detectTapGestures(
+                    onTap = { onClick() },
+                    onLongPress = { onLongClick() }
+                )
+            }
             .testTag("track_card_${track.id}")
     ) {
-            Row(
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.Transparent)
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.Transparent)
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(DividerColor.copy(alpha = 0.25f)),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(DividerColor.copy(alpha = 0.25f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (track.isVideo) {
-                        Icon(Icons.Default.Movie, contentDescription = null, tint = AccentTeal)
-                    } else {
-                        Icon(Icons.Default.MusicNote, contentDescription = null, tint = PrimaryGold)
-                    }
+                if (track.isVideo) {
+                    Icon(Icons.Default.Movie, contentDescription = null, tint = AccentTeal)
+                } else {
+                    Icon(Icons.Default.MusicNote, contentDescription = null, tint = PrimaryGold)
                 }
+            }
 
-                Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = track.title,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary,
-                            fontSize = 15.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
-                        // Lossless tag decoration
-                        if (track.format == "FLAC" || track.format == "WAV") {
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Box(
-                                modifier = Modifier
-                                    .border(1.dp, PrimaryGold.copy(alpha = 0.7f), RoundedCornerShape(4.dp))
-                                    .background(PrimaryGold.copy(alpha = 0.1f))
-                                    .padding(horizontal = 4.dp, vertical = 1.dp)
-                            ) {
-                                Text("LOSSLESS", fontSize = 8.sp, color = PrimaryGold, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = track.format,
-                            color = AccentTeal,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        if (track.sampleRate.isNotBlank()) {
-                            Text(" • ", color = DividerColor, fontSize = 11.sp)
-                            Text(
-                                text = track.sampleRate,
-                                color = UnselectedWhite,
-                                fontSize = 11.sp
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(4.dp))
-
-                // Delete quick icon button
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        imageVector = Icons.Default.DeleteOutline,
-                        contentDescription = "Hapus Berkas",
-                        tint = UnselectedWhite.copy(alpha = 0.7f),
-                        modifier = Modifier.size(20.dp)
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = track.title,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary,
+                        fontSize = 15.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
-                }
-
-                // Add to Playlist Button
-                if (onAddToPlaylist != null) {
-                    IconButton(onClick = onAddToPlaylist) {
-                        Icon(Icons.Default.PlaylistAdd, contentDescription = "Tambahkan ke Playlist", tint = PrimaryGold)
+                    // Lossless tag decoration
+                    if (track.format == "FLAC" || track.format == "WAV") {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Box(
+                            modifier = Modifier
+                                .border(1.dp, PrimaryGold.copy(alpha = 0.7f), RoundedCornerShape(4.dp))
+                                .background(PrimaryGold.copy(alpha = 0.1f))
+                                .padding(horizontal = 4.dp, vertical = 1.dp)
+                        ) {
+                            Text("LOSSLESS", fontSize = 8.sp, color = PrimaryGold, fontWeight = FontWeight.Bold)
+                        }
                     }
+                }
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = track.format,
+                        color = AccentTeal,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (track.sampleRate.isNotBlank()) {
+                        Text(" • ", color = DividerColor, fontSize = 11.sp)
+                        Text(
+                            text = track.sampleRate,
+                            color = UnselectedWhite,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(4.dp))
+
+            // Delete quick icon button
+            IconButton(onClick = onDelete) {
+                Icon(
+                    imageVector = Icons.Default.DeleteOutline,
+                    contentDescription = "Hapus Berkas",
+                    tint = UnselectedWhite.copy(alpha = 0.7f),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            // Add to Playlist Button
+            if (onAddToPlaylist != null) {
+                IconButton(onClick = onAddToPlaylist) {
+                    Icon(Icons.Default.PlaylistAdd, contentDescription = "Tambahkan ke Playlist", tint = PrimaryGold)
                 }
             }
         }
@@ -3460,9 +3462,11 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
         }
     }
 
-    // Clean up fullscreen and orientation when leaving screen
+    // Clean up fullscreen, keep screen on, and orientation when leaving screen
     DisposableEffect(Unit) {
+        activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         onDispose {
+            activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             viewModel.isVideoFullscreen = false
             viewModel.isVideoAutoRotate = false
             activity?.let { act ->
@@ -3738,171 +3742,185 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         // ROW 1: Bar Nama File & Menu
-                        Row(
+                        Card(
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = CardBackground),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color.Transparent, RoundedCornerShape(14.dp))
-                                .border(1.dp, DividerColor.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
-                                .padding(horizontal = 8.dp, vertical = 6.dp)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null
-                                ) { interactionTick++ },
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                                .border(1.dp, DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f), RoundedCornerShape(14.dp))
                         ) {
-                            IconButton(
-                                onClick = {
-                                    interactionTick++
-                                    onOpenDrawer()
-                                },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(Icons.Default.Menu, contentDescription = "Menu Slider", tint = PrimaryGold, modifier = Modifier.size(22.dp))
-                            }
-
-                            // File Name / Track Title
-                            Column(
+                            Row(
                                 modifier = Modifier
-                                    .weight(1f)
-                                    .padding(horizontal = 8.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) { interactionTick++ },
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = track.title,
-                                    color = TextPrimary,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    textAlign = TextAlign.Center
-                                )
-                                Text(
-                                    text = if (track.artist.isNotBlank() && track.artist != "<unknown>") track.artist else "Video • ${track.format}",
-                                    color = PrimaryGold,
-                                    fontSize = 10.5.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
+                                IconButton(
+                                    onClick = {
+                                        interactionTick++
+                                        onOpenDrawer()
+                                    },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(Icons.Default.Menu, contentDescription = "Menu Slider", tint = PrimaryGold, modifier = Modifier.size(22.dp))
+                                }
 
-                            // SAF Folder Scanner Button
-                            IconButton(
-                                onClick = {
-                                    interactionTick++
-                                    videoFolderPicker.launch(null)
-                                },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(Icons.Default.Folder, contentDescription = "Pindai Folder Video", tint = PrimaryGold, modifier = Modifier.size(20.dp))
+                                // File Name / Track Title
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(horizontal = 8.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = track.title,
+                                        color = TextPrimary,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Text(
+                                        text = if (track.artist.isNotBlank() && track.artist != "<unknown>") track.artist else "Video • ${track.format}",
+                                        color = PrimaryGold,
+                                        fontSize = 10.5.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+
+                                // SAF Folder Scanner Button
+                                IconButton(
+                                    onClick = {
+                                        interactionTick++
+                                        videoFolderPicker.launch(null)
+                                    },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(Icons.Default.Folder, contentDescription = "Pindai Folder Video", tint = PrimaryGold, modifier = Modifier.size(20.dp))
+                                }
                             }
                         }
 
                         // ROW 2: Bar Baru di Bawah Nama File (Volume, Acak, Rotasi, Kecepatan, Kunci - Seragam tanpa border berlebih)
-                        Row(
+                        Card(
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = CardBackground),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color.Transparent, RoundedCornerShape(12.dp))
-                                .border(1.dp, DividerColor.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
-                                .padding(horizontal = 6.dp, vertical = 3.dp)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null
-                                ) { interactionTick++ },
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically
+                                .border(1.dp, DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f), RoundedCornerShape(12.dp))
                         ) {
-                            // 1. Icon Volume (Klik muncul garis volume)
-                            IconButton(
-                                onClick = {
-                                    interactionTick++
-                                    showHeaderVolumeSlider = !showHeaderVolumeSlider
-                                },
-                                modifier = Modifier.size(36.dp)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 6.dp, vertical = 3.dp)
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) { interactionTick++ },
+                                horizontalArrangement = Arrangement.SpaceEvenly,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    imageVector = if (videoVolume == 0f) Icons.Default.VolumeOff else if (videoVolume < 0.5f) Icons.Default.VolumeDown else Icons.Default.VolumeUp,
-                                    contentDescription = "Pengaturan Volume",
-                                    tint = if (showHeaderVolumeSlider) AccentTeal else TextPrimary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                                // 1. Icon Volume (Klik muncul garis volume)
+                                IconButton(
+                                    onClick = {
+                                        interactionTick++
+                                        showHeaderVolumeSlider = !showHeaderVolumeSlider
+                                    },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (videoVolume == 0f) Icons.Default.VolumeOff else if (videoVolume < 0.5f) Icons.Default.VolumeDown else Icons.Default.VolumeUp,
+                                        contentDescription = "Pengaturan Volume",
+                                        tint = if (showHeaderVolumeSlider) AccentTeal else TextPrimary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
 
-                            // 2. Icon Acak (Shuffle Video)
-                            IconButton(
-                                onClick = {
-                                    interactionTick++
-                                    viewModel.toggleVideoShuffle()
-                                    val msg = if (!isVideoShuffle) "Mode Acak Video Diaktifkan" else "Mode Acak Dinonaktifkan"
-                                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                                },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Shuffle,
-                                    contentDescription = "Acak Video",
-                                    tint = if (isVideoShuffle) AccentTeal else TextPrimary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                                // 2. Icon Acak (Shuffle Video)
+                                IconButton(
+                                    onClick = {
+                                        interactionTick++
+                                        viewModel.toggleVideoShuffle()
+                                        val msg = if (!isVideoShuffle) "Mode Acak Video Diaktifkan" else "Mode Acak Dinonaktifkan"
+                                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                    },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Shuffle,
+                                        contentDescription = "Acak Video",
+                                        tint = if (isVideoShuffle) AccentTeal else TextPrimary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
 
-                            // 3. Icon Rotasi Otomatis (Sensor / User)
-                            IconButton(
-                                onClick = {
-                                    interactionTick++
-                                    val newAutoRotate = !viewModel.isVideoAutoRotate
-                                    viewModel.isVideoAutoRotate = newAutoRotate
-                                    activity?.let { act ->
-                                        if (newAutoRotate) {
-                                            act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR
-                                            Toast.makeText(context, "Rotasi Otomatis (Sensor) Diaktifkan", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_USER
-                                            Toast.makeText(context, "Rotasi Otomatis Dinonaktifkan", Toast.LENGTH_SHORT).show()
+                                // 3. Icon Rotasi Otomatis (Sensor / User)
+                                IconButton(
+                                    onClick = {
+                                        interactionTick++
+                                        val newAutoRotate = !viewModel.isVideoAutoRotate
+                                        viewModel.isVideoAutoRotate = newAutoRotate
+                                        activity?.let { act ->
+                                            if (newAutoRotate) {
+                                                act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR
+                                                Toast.makeText(context, "Rotasi Otomatis (Sensor) Diaktifkan", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_USER
+                                                Toast.makeText(context, "Rotasi Otomatis Dinonaktifkan", Toast.LENGTH_SHORT).show()
+                                            }
                                         }
-                                    }
-                                },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (viewModel.isVideoAutoRotate) Icons.Default.ScreenRotation else Icons.Default.ScreenLockRotation,
-                                    contentDescription = "Rotasi Otomatis",
-                                    tint = if (viewModel.isVideoAutoRotate) AccentTeal else TextPrimary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                                    },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (viewModel.isVideoAutoRotate) Icons.Default.ScreenRotation else Icons.Default.ScreenLockRotation,
+                                        contentDescription = "Rotasi Otomatis",
+                                        tint = if (viewModel.isVideoAutoRotate) AccentTeal else TextPrimary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
 
-                            // 4. Icon Kecepatan Putar (Seragam tanpa border)
-                            IconButton(
-                                onClick = {
-                                    interactionTick++
-                                    showSpeedDialog = true
-                                },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Speed,
-                                    contentDescription = "Kecepatan Video",
-                                    tint = if (videoPlaybackSpeed != 1.0f) AccentTeal else TextPrimary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                                // 4. Icon Kecepatan Putar (Seragam tanpa border)
+                                IconButton(
+                                    onClick = {
+                                        interactionTick++
+                                        showSpeedDialog = true
+                                    },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Speed,
+                                        contentDescription = "Kecepatan Video",
+                                        tint = if (videoPlaybackSpeed != 1.0f) AccentTeal else TextPrimary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
 
-                            // 5. Icon Kunci Layar (Seragam tanpa border)
-                            IconButton(
-                                onClick = {
-                                    interactionTick++
-                                    viewModel.isVideoLocked = true
-                                },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.LockOpen,
-                                    contentDescription = "Kunci Layar",
-                                    tint = TextPrimary,
-                                    modifier = Modifier.size(20.dp)
-                                )
+                                // 5. Icon Kunci Layar (Seragam tanpa border)
+                                IconButton(
+                                    onClick = {
+                                        interactionTick++
+                                        viewModel.isVideoLocked = true
+                                    },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.LockOpen,
+                                        contentDescription = "Kunci Layar",
+                                        tint = TextPrimary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
                             }
                         }
 
@@ -3912,76 +3930,89 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                             enter = expandVertically() + fadeIn(),
                             exit = shrinkVertically() + fadeOut()
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
+                            Card(
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = CardBackground),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(Color.Transparent, RoundedCornerShape(12.dp))
-                                    .border(1.dp, AccentTeal.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
-                                    .padding(horizontal = 10.dp, vertical = 4.dp)
-                                    .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = null
-                                    ) { interactionTick++ }
+                                    .border(1.dp, AccentTeal.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
                             ) {
-                                IconButton(
-                                    onClick = {
-                                        interactionTick++
-                                        if (videoVolume > 0f) {
-                                            viewModel.setVideoVolume(0f)
-                                        } else {
-                                            viewModel.setVideoVolume(1f)
-                                        }
-                                    },
-                                    modifier = Modifier.size(32.dp)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null
+                                        ) { interactionTick++ }
                                 ) {
-                                    Icon(
-                                        imageVector = if (videoVolume == 0f) Icons.Default.VolumeMute else Icons.Default.VolumeUp,
-                                        contentDescription = "Mute/Unmute",
-                                        tint = AccentTeal,
-                                        modifier = Modifier.size(18.dp)
+                                    IconButton(
+                                        onClick = {
+                                            interactionTick++
+                                            if (videoVolume > 0f) {
+                                                viewModel.setVideoVolume(0f)
+                                            } else {
+                                                viewModel.setVideoVolume(1f)
+                                            }
+                                        },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = if (videoVolume == 0f) Icons.Default.VolumeMute else Icons.Default.VolumeUp,
+                                            contentDescription = "Mute/Unmute",
+                                            tint = AccentTeal,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Slider(
+                                        value = videoVolume,
+                                        onValueChange = {
+                                            interactionTick++
+                                            viewModel.setVideoVolume(it)
+                                        },
+                                        valueRange = 0f..1f,
+                                        colors = SliderDefaults.colors(
+                                            activeTrackColor = AccentTeal,
+                                            inactiveTrackColor = DividerColor,
+                                            thumbColor = AccentTeal
+                                        ),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        "${(videoVolume * 100).toInt()}%",
+                                        color = TextPrimary,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.ExtraBold
                                     )
                                 }
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Slider(
-                                    value = videoVolume,
-                                    onValueChange = {
-                                        interactionTick++
-                                        viewModel.setVideoVolume(it)
-                                    },
-                                    valueRange = 0f..1f,
-                                    colors = SliderDefaults.colors(
-                                        activeTrackColor = AccentTeal,
-                                        inactiveTrackColor = DividerColor,
-                                        thumbColor = AccentTeal
-                                    ),
-                                    modifier = Modifier.weight(1f)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    "${(videoVolume * 100).toInt()}%",
-                                    color = TextPrimary,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.ExtraBold
-                                )
                             }
                         }
                     }
 
-                    // COMPACT BOTTOM PLAYER BAR & CONTROLS (Thinner bar, rounded thumb)
-                    Column(
+                    // COMPACT BOTTOM PLAYER BAR & CONTROLS (Thinner bar, rounded thumb, matching audio console styling)
+                    Card(
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = CardBackground),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
-                            .background(Color.Transparent, RoundedCornerShape(16.dp))
-                            .border(1.dp, DividerColor.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) { interactionTick++ },
-                        horizontalAlignment = Alignment.CenterHorizontally
+                            .border(1.dp, DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f), RoundedCornerShape(20.dp))
                     ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 10.dp, vertical = 8.dp)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) { interactionTick++ },
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
                         // Thinner Progress Seekbar Slider with Rounded Circle Thumb
                         val currentDur = if (videoDuration > 0) videoDuration else track.duration.coerceAtLeast(1L)
                         val currentProg = videoProgress.coerceIn(0L, currentDur)
@@ -4132,6 +4163,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                             }
                         }
                     }
+                }
                 }
             }
         }
