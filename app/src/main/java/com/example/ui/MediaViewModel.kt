@@ -46,6 +46,7 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
 
     // UI Navigation State
     var activeScreen by mutableStateOf("Library")
+    var selectedMediaTab by mutableStateOf("Semua") // Semua, Audio, Video, Lossless
 
     // Theme Management State (Light/Dark Mode, Presets, Custom Accent, Icon & Text Colors)
     private val _isDarkMode = MutableStateFlow(false)
@@ -189,7 +190,7 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
     val playbackSpeed: StateFlow<Float> = _playbackSpeed.asStateFlow()
 
     // Equalizer State
-    private val _isEqualizerEnabled = MutableStateFlow(true)
+    private val _isEqualizerEnabled = MutableStateFlow(false)
     val isEqualizerEnabled: StateFlow<Boolean> = _isEqualizerEnabled.asStateFlow()
 
     private val _equalizerBands = MutableStateFlow(listOf(0f, 0f, 0f, 0f, 0f)) // 60Hz, 230Hz, 910Hz, 4kHz, 14kHz
@@ -199,7 +200,7 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
     val selectedPresetName: StateFlow<String> = _selectedPresetName.asStateFlow()
 
     // Audio DSP Effects State (Reverb, Pitch, Super Bass, 3D Audio, L-R Audio Balance)
-    private val _isEffectsEnabled = MutableStateFlow(true)
+    private val _isEffectsEnabled = MutableStateFlow(false)
     val isEffectsEnabled: StateFlow<Boolean> = _isEffectsEnabled.asStateFlow()
 
     private val _reverbPreset = MutableStateFlow("Sedang") // Mati, Kecil, Sedang, Aula, Plate
