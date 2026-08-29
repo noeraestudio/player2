@@ -324,6 +324,7 @@ fun HarmoniMainScreen(viewModel: MediaViewModel) {
     val customPrimaryColor by viewModel.customPrimaryColor.collectAsStateWithLifecycle()
     val customSecondaryColor by viewModel.customSecondaryColor.collectAsStateWithLifecycle()
     val bgTransparency by viewModel.backgroundTransparency.collectAsStateWithLifecycle()
+    val backgroundStyle by viewModel.backgroundStyle.collectAsStateWithLifecycle()
 
     val currentTrack by viewModel.currentTrack.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
@@ -334,6 +335,29 @@ fun HarmoniMainScreen(viewModel: MediaViewModel) {
     val onOpenDrawer: () -> Unit = {
         coroutineScope.launch { drawerState.open() }
     }
+    val context = LocalContext.current
+
+    // Storage file search picker for Folder navigation icon
+    val storageFilePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
+            viewModel.importMultipleUris(context, uris)
+            Toast.makeText(context, "Memuat ${uris.size} file dari penyimpanan...", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // Dynamic background light animation transition
+    val bgInfiniteTransition = rememberInfiniteTransition(label = "BgLightAnim")
+    val lightAnimPhase by bgInfiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 2f * Math.PI.toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(6500, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "LightPhase"
+    )
 
     // Windows Theme Accent Palette
     val (presetPrimary, presetSecondary) = when (selectedThemeId) {
@@ -402,34 +426,190 @@ fun HarmoniMainScreen(viewModel: MediaViewModel) {
             color = if (isDarkMode) Color(0xFF101014) else Color(0xFFF4F4F6)
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
-                // Windows 11 Fluent Bloom / Frosted Acrylic Blur Canvas
+                // Windows 11 Fluent Bloom / Dynamic Background Canvas
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     // Base Canvas Tint
                     drawRect(color = if (isDarkMode) Color(0xFF101014) else Color(0xFFF4F4F6))
-                    
-                    // Acrylic Ambient Diffuse Glow Blobs (Reveals glowing ambient bloom as transparency increases)
+
                     val glowScale = if (bgTransparency <= 0f) 0.15f else (0.18f + bgTransparency * 0.45f).coerceIn(0.18f, 0.65f)
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(primaryColor.copy(alpha = (glowScale * 0.85f).coerceIn(0.10f, 0.55f)), Color.Transparent),
-                            center = Offset(size.width * 0.2f, size.height * 0.15f),
-                            radius = size.width * 0.85f
-                        )
-                    )
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(secondaryColor.copy(alpha = (glowScale * 0.70f).coerceIn(0.08f, 0.45f)), Color.Transparent),
-                            center = Offset(size.width * 0.85f, size.height * 0.75f),
-                            radius = size.width * 0.8f
-                        )
-                    )
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(primaryColor.copy(alpha = (glowScale * 0.50f).coerceIn(0.06f, 0.35f)), Color.Transparent),
-                            center = Offset(size.width * 0.5f, size.height * 0.95f),
-                            radius = size.width * 0.65f
-                        )
-                    )
+
+                    when (backgroundStyle) {
+                        "Gradasi Sunset" -> {
+                            // Warm sunset gradient from gold/orange to crimson and midnight indigo
+                            drawRect(
+                                brush = Brush.verticalGradient(
+                                    colors = if (isDarkMode) listOf(
+                                        Color(0xFF2E1005).copy(alpha = 0.8f),
+                                        Color(0xFF1A0A1E).copy(alpha = 0.9f),
+                                        Color(0xFF101014)
+                                    ) else listOf(
+                                        Color(0xFFFFE0B2).copy(alpha = 0.6f),
+                                        Color(0xFFFFCCBC).copy(alpha = 0.5f),
+                                        Color(0xFFF4F4F6)
+                                    )
+                                )
+                            )
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(Color(0xFFFF7043).copy(alpha = 0.35f * glowScale), Color.Transparent),
+                                    center = Offset(size.width * 0.8f, size.height * 0.2f),
+                                    radius = size.width * 0.9f
+                                )
+                            )
+                        }
+                        "Gradasi Aurora" -> {
+                            // Northern Lights Aurora Green/Teal into Cosmic Violet
+                            drawRect(
+                                brush = Brush.linearGradient(
+                                    colors = if (isDarkMode) listOf(
+                                        Color(0xFF04201C),
+                                        Color(0xFF140728),
+                                        Color(0xFF101014)
+                                    ) else listOf(
+                                        Color(0xFFE0F2F1),
+                                        Color(0xFFF3E5F5),
+                                        Color(0xFFF4F4F6)
+                                    ),
+                                    start = Offset(0f, 0f),
+                                    end = Offset(size.width, size.height)
+                                )
+                            )
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(Color(0xFF00E676).copy(alpha = 0.25f * glowScale), Color.Transparent),
+                                    center = Offset(size.width * 0.25f, size.height * 0.35f),
+                                    radius = size.width * 0.8f
+                                )
+                            )
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(Color(0xFFE040FB).copy(alpha = 0.25f * glowScale), Color.Transparent),
+                                    center = Offset(size.width * 0.85f, size.height * 0.65f),
+                                    radius = size.width * 0.85f
+                                )
+                            )
+                        }
+                        "Gradasi Cyber" -> {
+                            // Cyberpunk neon cyan & magenta gradient
+                            drawRect(
+                                brush = Brush.linearGradient(
+                                    colors = if (isDarkMode) listOf(
+                                        Color(0xFF001B2E),
+                                        Color(0xFF28002B),
+                                        Color(0xFF101014)
+                                    ) else listOf(
+                                        Color(0xFFE1F5FE),
+                                        Color(0xFFFCE4EC),
+                                        Color(0xFFF4F4F6)
+                                    )
+                                )
+                            )
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(Color(0xFF00E5FF).copy(alpha = 0.35f * glowScale), Color.Transparent),
+                                    center = Offset(size.width * 0.2f, size.height * 0.2f),
+                                    radius = size.width * 0.8f
+                                )
+                            )
+                        }
+                        "Classic Modern" -> {
+                            // Minimal dark slate / charcoal modern solid with refined specular lighting
+                            drawRect(color = if (isDarkMode) Color(0xFF13131A) else Color(0xFFECECEF))
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(primaryColor.copy(alpha = 0.12f), Color.Transparent),
+                                    center = Offset(size.width * 0.5f, size.height * 0.5f),
+                                    radius = size.width * 0.7f
+                                )
+                            )
+                        }
+                        "Solid Minimal" -> {
+                            // Pure solid minimal background
+                            drawRect(color = if (isDarkMode) Color(0xFF101014) else Color(0xFFF4F4F6))
+                        }
+                        "Animasi Cahaya" -> {
+                            // Dynamic animated sweeping light beams & luminous ambient pulse
+                            val lightX = (size.width * 0.5f) + (size.width * 0.45f * sin(lightAnimPhase))
+                            val lightY = (size.height * 0.4f) + (size.height * 0.3f * cos(lightAnimPhase * 0.8f))
+                            val sweepX = (size.width * 0.5f) - (size.width * 0.4f * sin(lightAnimPhase * 1.3f))
+                            val sweepY = (size.height * 0.7f) + (size.height * 0.25f * sin(lightAnimPhase * 0.9f))
+
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(primaryColor.copy(alpha = 0.40f * glowScale), Color.Transparent),
+                                    center = Offset(lightX, lightY),
+                                    radius = size.width * 0.95f
+                                )
+                            )
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(secondaryColor.copy(alpha = 0.35f * glowScale), Color.Transparent),
+                                    center = Offset(sweepX, sweepY),
+                                    radius = size.width * 0.85f
+                                )
+                            )
+                        }
+                        "Neon Glow" -> {
+                            // Pulsing dual neon auras
+                            val pulseRadius = size.width * (0.75f + 0.15f * sin(lightAnimPhase))
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(primaryColor.copy(alpha = 0.45f * glowScale), Color.Transparent),
+                                    center = Offset(size.width * 0.3f, size.height * 0.25f),
+                                    radius = pulseRadius
+                                )
+                            )
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(secondaryColor.copy(alpha = 0.40f * glowScale), Color.Transparent),
+                                    center = Offset(size.width * 0.75f, size.height * 0.75f),
+                                    radius = pulseRadius
+                                )
+                            )
+                        }
+                        "Mica Frosted" -> {
+                            // Frosted glass acrylic style
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(primaryColor.copy(alpha = 0.35f * glowScale), Color.Transparent),
+                                    center = Offset(size.width * 0.2f, size.height * 0.2f),
+                                    radius = size.width * 0.85f
+                                )
+                            )
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(secondaryColor.copy(alpha = 0.30f * glowScale), Color.Transparent),
+                                    center = Offset(size.width * 0.8f, size.height * 0.8f),
+                                    radius = size.width * 0.8f
+                                )
+                            )
+                        }
+                        else -> {
+                            // "Standar" Windows 11 Fluent Bloom
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(primaryColor.copy(alpha = (glowScale * 0.85f).coerceIn(0.10f, 0.55f)), Color.Transparent),
+                                    center = Offset(size.width * 0.2f, size.height * 0.15f),
+                                    radius = size.width * 0.85f
+                                )
+                            )
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(secondaryColor.copy(alpha = (glowScale * 0.70f).coerceIn(0.08f, 0.45f)), Color.Transparent),
+                                    center = Offset(size.width * 0.85f, size.height * 0.75f),
+                                    radius = size.width * 0.8f
+                                )
+                            )
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(primaryColor.copy(alpha = (glowScale * 0.50f).coerceIn(0.06f, 0.35f)), Color.Transparent),
+                                    center = Offset(size.width * 0.5f, size.height * 0.95f),
+                                    radius = size.width * 0.65f
+                                )
+                            )
+                        }
+                    }
+
                     // Frosted Glass Top Sheen
                     if (bgTransparency > 0f) {
                         drawRect(
@@ -487,7 +667,7 @@ fun HarmoniMainScreen(viewModel: MediaViewModel) {
                                             val icon = item.second
                                             val label = item.third
                                             val isSelected = if (route == "FolderNav") {
-                                                activeScreen == "Library" && viewModel.selectedMediaTab == "Folder"
+                                                false
                                             } else if (route == "Library") {
                                                 activeScreen == "Library" && viewModel.selectedMediaTab != "Folder"
                                             } else {
@@ -503,8 +683,14 @@ fun HarmoniMainScreen(viewModel: MediaViewModel) {
                                                     .background(if (isSelected) PrimaryGold.copy(alpha = 0.15f) else Color.Transparent)
                                                     .clickable {
                                                         if (route == "FolderNav") {
-                                                            viewModel.selectedMediaTab = "Folder"
-                                                            viewModel.activeScreen = "Library"
+                                                            // Icon Folder searches file in storage directly
+                                                            Toast.makeText(context, "Mencari file dalam penyimpanan...", Toast.LENGTH_SHORT).show()
+                                                            try {
+                                                                storageFilePickerLauncher.launch(arrayOf("audio/*", "video/*", "*/*"))
+                                                            } catch (e: Exception) {
+                                                                viewModel.selectedMediaTab = "Folder"
+                                                                viewModel.activeScreen = "Library"
+                                                            }
                                                         } else if (route == "Library") {
                                                             if (viewModel.selectedMediaTab == "Folder") {
                                                                 viewModel.selectedMediaTab = "Audio"
@@ -943,38 +1129,48 @@ fun StudioDrawerContent(
 
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        // Background Layout Styles
-                        Text("Gaya Layout Latar Belakang", fontSize = 11.sp, color = UnselectedWhite, fontWeight = FontWeight.Bold)
+                        // Background Layout & Color Styles
+                        Text("Pilihan Gaya & Background Warna", fontSize = 11.sp, color = UnselectedWhite, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(6.dp))
 
                         val bgStyles = listOf(
-                            "Standard" to "Standar",
-                            "Carbon Studio" to "Karbon",
-                            "Radial Warmth" to "Radial",
-                            "Gradient Mist" to "Gradasi"
+                            "Standar" to "Standar (Bloom)",
+                            "Gradasi Sunset" to "Gradasi Sunset",
+                            "Gradasi Aurora" to "Gradasi Aurora",
+                            "Gradasi Cyber" to "Gradasi Cyber",
+                            "Classic Modern" to "Classic Modern",
+                            "Solid Minimal" to "Solid Minimal",
+                            "Animasi Cahaya" to "Animasi Cahaya",
+                            "Neon Glow" to "Neon Glow",
+                            "Mica Frosted" to "Mica Frosted"
                         )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            bgStyles.forEach { (styleKey, styleLabel) ->
-                                val isSelected = backgroundStyle == styleKey
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(if (isSelected) PrimaryGold.copy(alpha = 0.2f) else DividerColor.copy(alpha = 0.15f))
-                                        .border(1.dp, if (isSelected) PrimaryGold else DividerColor.copy(alpha = 0.35f), RoundedCornerShape(6.dp))
-                                        .clickable { viewModel.setBackgroundStyle(styleKey) }
-                                        .padding(vertical = 5.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = styleLabel,
-                                        fontSize = 9.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (isSelected) PrimaryGold else UnselectedWhite
-                                    )
+                        bgStyles.chunked(3).forEach { rowItems ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 2.5.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                rowItems.forEach { (styleKey, styleLabel) ->
+                                    val isSelected = backgroundStyle == styleKey || (styleKey == "Standar" && (backgroundStyle == "Standard" || backgroundStyle == "Standar"))
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(if (isSelected) PrimaryGold.copy(alpha = 0.22f) else DividerColor.copy(alpha = 0.15f))
+                                            .border(1.dp, if (isSelected) PrimaryGold else DividerColor.copy(alpha = 0.35f), RoundedCornerShape(6.dp))
+                                            .clickable { viewModel.setBackgroundStyle(styleKey) }
+                                            .padding(vertical = 6.dp, horizontal = 2.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = styleLabel,
+                                            fontSize = 9.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSelected) PrimaryGold else TextPrimary,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -2849,19 +3045,16 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
     val videoVolume by viewModel.videoVolume.collectAsStateWithLifecycle()
     val bgTransparency by viewModel.backgroundTransparency.collectAsStateWithLifecycle()
 
+    val audioLabelStyle by viewModel.audioLabelStyle.collectAsStateWithLifecycle()
+    val visualizerModel by viewModel.visualizerModel.collectAsStateWithLifecycle()
+    val visualizerColorTheme by viewModel.visualizerColorTheme.collectAsStateWithLifecycle()
+
     var showEditorDrawer by remember { mutableStateOf(false) }
-    var showEqualizerDialog by remember { mutableStateOf(false) }
     var showSpeedDialog by remember { mutableStateOf(false) }
     var showSpectrumDialog by remember { mutableStateOf(false) }
     var showAbRepeatDialog by remember { mutableStateOf(false) }
     var showMenuDropdown by remember { mutableStateOf(false) }
-    var activeTab by remember { mutableStateOf("Karaoke") }
-    var spectrumModel by remember { mutableStateOf("Wave") }
-    var spectrumColor by remember { mutableStateOf("Teal") }
-
-    // Photo label mode: Transparan (default), Putih, Hitam
-    var photoLabelMode by remember { mutableStateOf("Transparan") }
-    var showPhotoLabelMenu by remember { mutableStateOf(false) }
+    var showLabelDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
 
@@ -2947,7 +3140,7 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Top Action Toolbar (Solid Non-Transparent Header Bar matching Nav)
+                // Top Action Toolbar with Playing Title and 3-dot Menu (Matching Nav Bar)
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     color = HeaderBackground,
@@ -2958,7 +3151,7 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .border(0.5.dp, DividerColor.copy(alpha = 0.35f))
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -2968,7 +3161,34 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                         ) {
                             Icon(Icons.Default.Menu, contentDescription = "Menu Pengaturan", tint = PrimaryGold, modifier = Modifier.size(22.dp))
                         }
-                        Text("NOERAE PLAYER", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = PrimaryGold, letterSpacing = 1.sp)
+
+                        // Music Title in Header (Centered & Elegant)
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = 8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = track.title,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 13.5.sp,
+                                color = TextPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Center
+                            )
+                            Text(
+                                text = if (track.artist.isNotBlank() && track.artist != "<unknown>") track.artist else "Audio • ${track.format.uppercase()}",
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 10.5.sp,
+                                color = PrimaryGold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             IconButton(
                                 onClick = { viewModel.activeScreen = "Library" },
@@ -2989,28 +3209,12 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                     modifier = Modifier.background(CardBackground)
                                 ) {
                                     DropdownMenuItem(
-                                        text = { Text("Edit Tag Musik (MP3 Info)", color = TextPrimary, fontSize = 13.sp) },
+                                        text = { Text("Tampilan Label Cover", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold) },
                                         onClick = {
                                             showMenuDropdown = false
-                                            showEditorDrawer = true
+                                            showLabelDialog = true
                                         },
-                                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Equaliser Studio 5-Band", color = TextPrimary, fontSize = 13.sp) },
-                                        onClick = {
-                                            showMenuDropdown = false
-                                            showEqualizerDialog = true
-                                        },
-                                        leadingIcon = { Icon(Icons.Default.Album, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Kecepatan Tempo (Speed)", color = TextPrimary, fontSize = 13.sp) },
-                                        onClick = {
-                                            showMenuDropdown = false
-                                            showSpeedDialog = true
-                                        },
-                                        leadingIcon = { Icon(Icons.Default.Speed, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
+                                        leadingIcon = { Icon(Icons.Default.Layers, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
                                     )
                                     DropdownMenuItem(
                                         text = { Text("Gaya & Warna Spektrum", color = TextPrimary, fontSize = 13.sp) },
@@ -3021,12 +3225,28 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                         leadingIcon = { Icon(Icons.Default.Palette, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
                                     )
                                     DropdownMenuItem(
+                                        text = { Text("Kecepatan Tempo (Speed)", color = TextPrimary, fontSize = 13.sp) },
+                                        onClick = {
+                                            showMenuDropdown = false
+                                            showSpeedDialog = true
+                                        },
+                                        leadingIcon = { Icon(Icons.Default.Speed, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
+                                    )
+                                    DropdownMenuItem(
                                         text = { Text("Pengulangan Segmen A-B", color = TextPrimary, fontSize = 13.sp) },
                                         onClick = {
                                             showMenuDropdown = false
                                             showAbRepeatDialog = true
                                         },
                                         leadingIcon = { Icon(Icons.Default.Sync, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Edit Tag Musik (MP3 Info)", color = TextPrimary, fontSize = 13.sp) },
+                                        onClick = {
+                                            showMenuDropdown = false
+                                            showEditorDrawer = true
+                                        },
+                                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
                                     )
                                     DropdownMenuItem(
                                         text = { Text("Tambahkan ke Playlist", color = TextPrimary, fontSize = 13.sp) },
@@ -3036,6 +3256,15 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                         },
                                         leadingIcon = { Icon(Icons.Default.PlaylistAdd, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
                                     )
+                                    HorizontalDivider(color = DividerColor.copy(alpha = 0.4f), thickness = 0.8.dp)
+                                    DropdownMenuItem(
+                                        text = { Text("Bagikan Lagu", color = PrimaryGold, fontSize = 13.sp, fontWeight = FontWeight.Bold) },
+                                        onClick = {
+                                            showMenuDropdown = false
+                                            shareMediaTrack(context, track)
+                                        },
+                                        leadingIcon = { Icon(Icons.Default.Share, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
+                                    )
                                 }
                             }
                         }
@@ -3043,12 +3272,12 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                 }
             }
 
-            // ================== SECTION 2: DYNAMIC SPECTRUM & ARTWORK MIDDLE CONTENT ==================
-            Column(
+            // ================== SECTION 2: FULL-HEIGHT SPECTACULAR SPECTRUM & OPTIONAL ARTWORK ==================
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .padding(horizontal = 14.dp, vertical = 4.dp)
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
                     .pointerInput(Unit) {
                         detectHorizontalDragGestures { _, dragAmount ->
                             if (dragAmount < -35) {
@@ -3056,47 +3285,37 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                             }
                         }
                     },
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.SpaceBetween
+                contentAlignment = Alignment.Center
             ) {
-                // Sound Spectrum Visualizer - Full Height Near Header, Transparent No Background
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(130.dp)
-                        .padding(top = 2.dp)
-                ) {
-                    WaveVisualizer(
-                        isPlaying = isPlaying, 
-                        model = spectrumModel, 
-                        colorTheme = spectrumColor,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
+                // Full Height Sound Spectrum Visualizer (from main control up to header)
+                WaveVisualizer(
+                    isPlaying = isPlaying, 
+                    model = visualizerModel, 
+                    colorTheme = visualizerColorTheme,
+                    modifier = Modifier.fillMaxSize()
+                )
 
-                // Center Artwork Box with Clickable Photo Label
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                ) {
+                // Optional Album Artwork Overlay when not set to "Sembunyi"
+                if (audioLabelStyle != "Sembunyi") {
                     Box(
                         modifier = Modifier
-                            .size(175.dp)
-                            .shadow(12.dp, RoundedCornerShape(20.dp), ambientColor = PrimaryGold.copy(alpha = 0.25f), spotColor = PrimaryGold.copy(alpha = 0.2f))
+                            .size(170.dp)
+                            .shadow(16.dp, RoundedCornerShape(20.dp), ambientColor = PrimaryGold.copy(alpha = 0.35f), spotColor = PrimaryGold.copy(alpha = 0.3f))
                             .clip(RoundedCornerShape(20.dp))
                             .background(
-                                when (photoLabelMode) {
-                                    "Putih" -> Color.White.copy(alpha = 0.85f)
+                                when (audioLabelStyle) {
+                                    "Solid", "Putih", "Solid Minimal" -> Color.White.copy(alpha = 0.95f)
                                     "Hitam" -> Color.Black.copy(alpha = 0.85f)
-                                    else -> Color.Transparent
+                                    else -> DividerColor.copy(alpha = 0.25f)
                                 }
-                            ),
+                            )
+                            .border(1.dp, PrimaryGold.copy(alpha = 0.45f), RoundedCornerShape(20.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         if (!track.imageUrl.isNullOrBlank()) {
                             AsyncImage(
                                 model = track.imageUrl,
-                                contentDescription = "Cover Album Dinamis",
+                                contentDescription = "Cover Album",
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = androidx.compose.ui.layout.ContentScale.Crop
                             )
@@ -3105,111 +3324,17 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 imageVector = Icons.Default.Movie,
                                 contentDescription = "Video Cover",
                                 tint = PrimaryGold,
-                                modifier = Modifier.size(56.dp)
+                                modifier = Modifier.size(60.dp)
                             )
                         } else {
                             Icon(
                                 imageVector = Icons.Default.MusicNote,
                                 contentDescription = "Music Cover",
                                 tint = PrimaryGold,
-                                modifier = Modifier.size(56.dp)
+                                modifier = Modifier.size(60.dp)
                             )
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    // Clickable Photo Label with 3 transparency choices (Transparan, Putih, Hitam)
-                    Box {
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = when (photoLabelMode) {
-                                "Putih" -> Color.White
-                                "Hitam" -> Color.Black
-                                else -> DividerColor.copy(alpha = 0.2f)
-                            },
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .border(1.dp, PrimaryGold.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
-                                .clickable { showPhotoLabelMenu = true }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    Icons.Default.Palette,
-                                    contentDescription = null,
-                                    tint = if (photoLabelMode == "Putih") Color.Black else PrimaryGold,
-                                    modifier = Modifier.size(13.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "Label: $photoLabelMode",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (photoLabelMode == "Putih") Color.Black else TextPrimary
-                                )
-                            }
-                        }
-
-                        DropdownMenu(
-                            expanded = showPhotoLabelMenu,
-                            onDismissRequest = { showPhotoLabelMenu = false },
-                            modifier = Modifier.background(CardBackground)
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Transparan (Default)", color = TextPrimary, fontSize = 13.sp, fontWeight = if (photoLabelMode == "Transparan") FontWeight.Bold else FontWeight.Normal) },
-                                onClick = {
-                                    photoLabelMode = "Transparan"
-                                    showPhotoLabelMenu = false
-                                },
-                                leadingIcon = { Icon(Icons.Default.Layers, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Putih", color = TextPrimary, fontSize = 13.sp, fontWeight = if (photoLabelMode == "Putih") FontWeight.Bold else FontWeight.Normal) },
-                                onClick = {
-                                    photoLabelMode = "Putih"
-                                    showPhotoLabelMenu = false
-                                },
-                                leadingIcon = { Icon(Icons.Default.BrightnessHigh, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Hitam", color = TextPrimary, fontSize = 13.sp, fontWeight = if (photoLabelMode == "Hitam") FontWeight.Bold else FontWeight.Normal) },
-                                onClick = {
-                                    photoLabelMode = "Hitam"
-                                    showPhotoLabelMenu = false
-                                },
-                                leadingIcon = { Icon(Icons.Default.Brightness2, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
-                            )
-                        }
-                    }
-                }
-
-                // Title and Artist header
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(bottom = 4.dp)
-                ) {
-                    Text(
-                        text = track.title,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = TextPrimary,
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(horizontal = 12.dp)
-                    )
-                    Text(
-                        text = track.artist,
-                        fontSize = 12.sp,
-                        color = UnselectedWhite,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
                 }
             }
 
@@ -3358,182 +3483,6 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
         }
 
         // ================== POPUP SUB-DIALOGS FOR HIDDEN OPTIONS MENU ==================
-        // Equalizer dialog
-        if (showEqualizerDialog) {
-            AlertDialog(
-                onDismissRequest = { showEqualizerDialog = false },
-                title = {
-                    Text(
-                        "MIXER & EQUALIZER STUDIO (NOERAE)",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = PrimaryGold
-                    )
-                },
-                text = {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        // Preset options selection
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            val presetNames = listOf("Normal", "Pop", "Rock", "Jazz", "Klasik", "Bass Boost")
-                            items(presetNames) { preset ->
-                                val selected = selectedPresetName == preset
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(20.dp))
-                                        .background(if (selected) PrimaryGold else DividerColor)
-                                        .border(1.dp, if (selected) PrimaryGold else Color.Transparent, RoundedCornerShape(20.dp))
-                                        .clickable { viewModel.applyPreset(preset) }
-                                        .padding(horizontal = 14.dp, vertical = 6.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = preset,
-                                        fontSize = 12.sp,
-                                        color = if (selected) Color(0xFF101014) else TextPrimary,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
-
-                        Text("EQUALIZER 5-BAND (VERTIKAL):", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = UnselectedWhite)
-
-                        // Five Vertical Slider Bands Row
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(160.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            val bands = listOf("60Hz", "230Hz", "910Hz", "4kHz", "14kHz")
-                            bands.forEachIndexed { index, bandName ->
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Text(bandName, fontSize = 10.sp, color = TextPrimary, fontWeight = FontWeight.Bold)
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .height(115.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Slider(
-                                            value = equalizerBands[index],
-                                            onValueChange = { viewModel.updateEqualizerBand(index, it) },
-                                            valueRange = -15f..15f,
-                                            modifier = Modifier
-                                                .width(105.dp)
-                                                .rotate(-90f),
-                                            colors = SliderDefaults.colors(
-                                                activeTrackColor = PrimaryGold,
-                                                inactiveTrackColor = DividerColor,
-                                                thumbColor = PrimaryGold
-                                            )
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text("${equalizerBands[index].toInt()} dB", fontSize = 9.sp, color = AccentTeal, fontWeight = FontWeight.ExtraBold)
-                                }
-                            }
-                                             // Master Volume Controllers Section (Dual adjusters)
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(DividerColor.copy(alpha = 0.3f))
-                                .padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            // 1. Audio Master Volume
-                            Column {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = if (volume == 0f) Icons.Default.VolumeMute else if (volume < 0.5f) Icons.Default.VolumeDown else Icons.Default.VolumeUp,
-                                            contentDescription = "Volume Mixer Audio",
-                                            tint = PrimaryGold,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text("VOLUME AUDIO UTAMA", fontSize = 11.sp, color = TextPrimary, fontWeight = FontWeight.Bold)
-                                    }
-                                    Text("${(volume * 100).toInt()}%", fontSize = 11.sp, color = PrimaryGold, fontWeight = FontWeight.ExtraBold)
-                                }
-                                Spacer(modifier = Modifier.height(3.dp))
-                                Slider(
-                                    value = volume,
-                                    onValueChange = { viewModel.setVolume(it) },
-                                    valueRange = 0f..1f,
-                                    colors = SliderDefaults.colors(
-                                        activeTrackColor = AccentTeal,
-                                        inactiveTrackColor = DividerColor,
-                                        thumbColor = AccentTeal
-                                    ),
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
-
-                            // Divider line
-                            HorizontalDivider(color = DividerColor.copy(alpha = 0.5f), thickness = 1.dp)
-
-                            // 2. Video Volume
-                            Column {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = if (videoVolume == 0f) Icons.Default.VolumeMute else Icons.Default.VolumeUp,
-                                            contentDescription = "Volume Mixer Video",
-                                            tint = AccentTeal,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text("VOLUME VIDEO LATAR", fontSize = 11.sp, color = TextPrimary, fontWeight = FontWeight.Bold)
-                                    }
-                                    Text("${(videoVolume * 100).toInt()}%", fontSize = 11.sp, color = AccentTeal, fontWeight = FontWeight.ExtraBold)
-                                }
-                                Spacer(modifier = Modifier.height(3.dp))
-                                Slider(
-                                    value = videoVolume,
-                                    onValueChange = { viewModel.setVideoVolume(it) },
-                                    valueRange = 0f..1f,
-                                    colors = SliderDefaults.colors(
-                                        activeTrackColor = PrimaryGold,
-                                        inactiveTrackColor = DividerColor,
-                                        thumbColor = PrimaryGold
-                                    ),
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
-                        }     }
-                    }
-                },
-                confirmButton = {
-                    TextButton(onClick = { showEqualizerDialog = false }) {
-                        Text("Tutup Mixer", color = PrimaryGold, fontWeight = FontWeight.Bold)
-                    }
-                },
-                containerColor = CardBackground,
-                iconContentColor = PrimaryGold
-            )
-        }
-
         // AB Repeat Dialog
         if (showAbRepeatDialog) {
             AlertDialog(
@@ -3699,43 +3648,106 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
             )
         }
 
-        // Spectrum / Visualizer Options Dialog
+        // Dialog Label Cover Album (Transparan, Solid, Sembunyi)
+        if (showLabelDialog) {
+            AlertDialog(
+                onDismissRequest = { showLabelDialog = false },
+                title = { Text("Tampilan Label Cover Album", color = PrimaryGold, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        val labelOptions = listOf(
+                            Triple("Transparan", "Transparan (Default)", "Cover album dengan bingkai transparan artistik"),
+                            Triple("Solid", "Solid (Putih Bersih)", "Cover album dengan latar belakang solid putih kontras"),
+                            Triple("Sembunyi", "Sembunyi (Hanya Spektrum Penuh)", "Sembunyikan cover untuk tampilan spektrum audio 100% penuh")
+                        )
+                        labelOptions.forEach { (key, title, subtitle) ->
+                            val isSelected = audioLabelStyle == key || (key == "Transparan" && audioLabelStyle.isBlank())
+                            Card(
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = if (isSelected) PrimaryGold.copy(alpha = 0.18f) else DividerColor.copy(alpha = 0.2f)),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .border(1.dp, if (isSelected) PrimaryGold else Color.Transparent, RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        viewModel.setAudioLabelStyle(key)
+                                        showLabelDialog = false
+                                    }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = isSelected,
+                                        onClick = {
+                                            viewModel.setAudioLabelStyle(key)
+                                            showLabelDialog = false
+                                        },
+                                        colors = RadioButtonDefaults.colors(selectedColor = PrimaryGold, unselectedColor = UnselectedWhite)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(title, fontWeight = FontWeight.Bold, color = if (isSelected) PrimaryGold else TextPrimary, fontSize = 13.sp)
+                                        Text(subtitle, color = UnselectedWhite, fontSize = 10.5.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showLabelDialog = false }) {
+                        Text("Tutup", color = PrimaryGold, fontWeight = FontWeight.Bold)
+                    }
+                },
+                containerColor = CardBackground
+            )
+        }
+
+        // Spectrum / Visualizer Options Dialog (Featuring Random + Multiple Visualizer Models)
         if (showSpectrumDialog) {
             AlertDialog(
                 onDismissRequest = { showSpectrumDialog = false },
                 title = { Text("Gaya & Warna Spektrum", color = PrimaryGold, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
                 text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
                         Column {
-                            Text("GAYA VISUALISASI:", color = UnselectedWhite, fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 1.sp)
+                            Text("GAYA VISUALISASI SPEKTRUM:", color = UnselectedWhite, fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 1.sp)
                             Spacer(modifier = Modifier.height(8.dp))
                             val spectrumOptions = listOf(
-                                "Wave" to "Gelombang Sinus",
-                                "Bars" to "Batang Spektrum",
-                                "Mirror" to "Spektrum Cermin",
-                                "Circular" to "Lingkaran Ring Radial",
-                                "Particles" to "Partikel Suara",
-                                "Dots" to "Titik Frekuensi",
-                                "NeonPulse" to "Pita Neon Cyber"
+                                "Wave" to "Gelombang Sinus (Wave)",
+                                "Random" to "Acak Dinamis (Random Spectrum)",
+                                "Bars" to "Batang Spektrum (Bars)",
+                                "Mirror" to "Spektrum Cermin (Mirror)",
+                                "Circular" to "Lingkaran Ring Radial (Circular)",
+                                "Particles" to "Partikel Suara (Particles)",
+                                "Dots" to "Titik Frekuensi (Dots)",
+                                "NeonPulse" to "Pita Neon Cyber (Neon Pulse)",
+                                "LaserBeam" to "Laser Beam Spectrum",
+                                "FireFlame" to "Api Menyala (Fire Flame)",
+                                "CyberWave" to "Cyberpunk Matrix Wave"
                             )
                             spectrumOptions.forEach { (id, label) ->
-                                val isSelected = spectrumModel == id
+                                val isSelected = visualizerModel == id
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(if (isSelected) DividerColor else Color.Transparent)
-                                        .clickable { spectrumModel = id }
-                                        .padding(vertical = 8.dp, horizontal = 12.dp),
+                                        .background(if (isSelected) PrimaryGold.copy(alpha = 0.15f) else Color.Transparent)
+                                        .clickable { viewModel.setVisualizerModel(id) }
+                                        .padding(vertical = 8.dp, horizontal = 10.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     RadioButton(
                                         selected = isSelected,
-                                        onClick = { spectrumModel = id },
+                                        onClick = { viewModel.setVisualizerModel(id) },
                                         colors = RadioButtonDefaults.colors(selectedColor = PrimaryGold, unselectedColor = UnselectedWhite)
                                     )
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Text(label, color = if (isSelected) PrimaryGold else TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(label, color = if (isSelected) PrimaryGold else TextPrimary, fontSize = 13.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
                                 }
                             }
                         }
@@ -3743,24 +3755,31 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                         Column {
                             Text("TEMA WARNA SPEKTRUM:", color = UnselectedWhite, fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 1.sp)
                             Spacer(modifier = Modifier.height(8.dp))
-                            listOf("Gold" to "Emas Premium (Gold)", "Teal" to "Toska Neon (Teal)", "Aurora" to "Sinar Senja (Aurora)", "Emerald" to "Hijau Zamrud").forEach { (id, label) ->
-                                val isSelected = spectrumColor == id
+                            listOf(
+                                "Gold" to "Emas Premium (Gold)",
+                                "Teal" to "Toska Neon (Teal)",
+                                "Aurora" to "Sinar Senja (Aurora)",
+                                "Emerald" to "Hijau Zamrud (Emerald)",
+                                "Cyber" to "Cyber Magenta (Cyber)",
+                                "Fire" to "Lava Oranye (Fire)"
+                            ).forEach { (id, label) ->
+                                val isSelected = visualizerColorTheme == id
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(if (isSelected) DividerColor else Color.Transparent)
-                                        .clickable { spectrumColor = id }
-                                        .padding(vertical = 10.dp, horizontal = 12.dp),
+                                        .background(if (isSelected) PrimaryGold.copy(alpha = 0.15f) else Color.Transparent)
+                                        .clickable { viewModel.setVisualizerColorTheme(id) }
+                                        .padding(vertical = 8.dp, horizontal = 10.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     RadioButton(
                                         selected = isSelected,
-                                        onClick = { spectrumColor = id },
+                                        onClick = { viewModel.setVisualizerColorTheme(id) },
                                         colors = RadioButtonDefaults.colors(selectedColor = PrimaryGold, unselectedColor = UnselectedWhite)
                                     )
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Text(label, color = if (isSelected) PrimaryGold else TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(label, color = if (isSelected) PrimaryGold else TextPrimary, fontSize = 13.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
                                 }
                             }
                         }
@@ -4087,6 +4106,7 @@ fun VideoPlayerView(
     isPlaying: Boolean,
     volume: Float,
     isLooping: Boolean,
+    scaleMode: String = "FIT",
     onPrepared: (MediaPlayer) -> Unit,
     onCompletion: () -> Unit,
     modifier: Modifier = Modifier
@@ -4095,7 +4115,65 @@ fun VideoPlayerView(
     var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
     var isPlayerPrepared by remember { mutableStateOf(false) }
     var surfaceTextureState by remember { mutableStateOf<SurfaceTexture?>(null) }
+    var textureViewRef by remember { mutableStateOf<TextureView?>(null) }
+    var videoWidth by remember { mutableStateOf(0) }
+    var videoHeight by remember { mutableStateOf(0) }
     var hasError by remember { mutableStateOf(false) }
+
+    fun updateTextureTransform() {
+        val tv = textureViewRef ?: return
+        val vw = tv.width
+        val vh = tv.height
+        if (vw <= 0 || vh <= 0) return
+        val vidW = if (videoWidth > 0) videoWidth else vw
+        val vidH = if (videoHeight > 0) videoHeight else vh
+
+        val matrix = android.graphics.Matrix()
+        val sx: Float
+        val sy: Float
+
+        when (scaleMode.uppercase()) {
+            "FILL", "ZOOM" -> {
+                val scale = maxOf(vw.toFloat() / vidW, vh.toFloat() / vidH)
+                sx = (scale * vidW) / vw
+                sy = (scale * vidH) / vh
+            }
+            "STRETCH" -> {
+                sx = 1f
+                sy = 1f
+            }
+            "16:9" -> {
+                val targetRatio = 16f / 9f
+                val currentRatio = vw.toFloat() / vh
+                if (currentRatio > targetRatio) {
+                    sx = (vh * targetRatio) / vw
+                    sy = 1f
+                } else {
+                    sx = 1f
+                    sy = (vw / targetRatio) / vh
+                }
+            }
+            "4:3" -> {
+                val targetRatio = 4f / 3f
+                val currentRatio = vw.toFloat() / vh
+                if (currentRatio > targetRatio) {
+                    sx = (vh * targetRatio) / vw
+                    sy = 1f
+                } else {
+                    sx = 1f
+                    sy = (vw / targetRatio) / vh
+                }
+            }
+            else -> { // "FIT" - Fit video to maintain exact aspect ratio within screen dimensions
+                val scale = minOf(vw.toFloat() / vidW, vh.toFloat() / vidH)
+                sx = (scale * vidW) / vw
+                sy = (scale * vidH) / vh
+            }
+        }
+
+        matrix.setScale(sx, sy, vw / 2f, vh / 2f)
+        tv.setTransform(matrix)
+    }
 
     fun setupMediaPlayer(st: SurfaceTexture) {
         try {
@@ -4105,6 +4183,7 @@ fun VideoPlayerView(
                     oldMp.setOnErrorListener(null)
                     oldMp.setOnPreparedListener(null)
                     oldMp.setOnCompletionListener(null)
+                    oldMp.setOnVideoSizeChangedListener(null)
                     if (oldMp.isPlaying) oldMp.stop()
                 } catch (e: Exception) {}
                 try {
@@ -4120,12 +4199,24 @@ fun VideoPlayerView(
                 }
                 true
             }
+            mp.setOnVideoSizeChangedListener { _, w, h ->
+                if (w > 0 && h > 0) {
+                    videoWidth = w
+                    videoHeight = h
+                    updateTextureTransform()
+                }
+            }
             mp.setOnPreparedListener { preparedMp ->
                 try {
                     isPlayerPrepared = true
                     hasError = false
                     preparedMp.isLooping = isLooping
                     preparedMp.setVolume(volume, volume)
+                    if (preparedMp.videoWidth > 0 && preparedMp.videoHeight > 0) {
+                        videoWidth = preparedMp.videoWidth
+                        videoHeight = preparedMp.videoHeight
+                        updateTextureTransform()
+                    }
                     if (isPlaying) {
                         preparedMp.start()
                     }
@@ -4167,6 +4258,10 @@ fun VideoPlayerView(
         }
     }
 
+    LaunchedEffect(scaleMode, videoWidth, videoHeight) {
+        updateTextureTransform()
+    }
+
     DisposableEffect(Unit) {
         onDispose {
             isPlayerPrepared = false
@@ -4175,6 +4270,7 @@ fun VideoPlayerView(
                     mp.setOnErrorListener(null)
                     mp.setOnPreparedListener(null)
                     mp.setOnCompletionListener(null)
+                    mp.setOnVideoSizeChangedListener(null)
                     try {
                         if (mp.isPlaying) mp.stop()
                     } catch (e: Exception) {}
@@ -4229,12 +4325,16 @@ fun VideoPlayerView(
         AndroidView(
             factory = { ctx ->
                 TextureView(ctx).apply {
+                    textureViewRef = this
                     surfaceTextureListener = object : TextureView.SurfaceTextureListener {
                         override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
                             surfaceTextureState = surface
+                            updateTextureTransform()
                         }
 
-                        override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {}
+                        override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {
+                            updateTextureTransform()
+                        }
 
                         override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
                             surfaceTextureState = null
@@ -4248,6 +4348,7 @@ fun VideoPlayerView(
                     }
                     if (isAvailable && surfaceTexture != null) {
                         surfaceTextureState = surfaceTexture
+                        updateTextureTransform()
                     }
                 }
             },
@@ -4295,6 +4396,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
     var lockInteractionTick by remember { mutableStateOf(0) }
 
     val videoTracks = remember(tracks) { tracks.filter { it.isVideo } }
+    val videoScaleMode by viewModel.videoScaleMode.collectAsStateWithLifecycle()
 
     val videoSingleFilePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -4557,6 +4659,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
             isPlaying = isVideoPlaying,
             volume = videoVolume,
             isLooping = videoRepeatMode,
+            scaleMode = videoScaleMode,
             onPrepared = { mp -> viewModel.setVideoMediaPlayer(mp) },
             onCompletion = { viewModel.playNextVideo() },
             modifier = Modifier.fillMaxSize()
@@ -4787,7 +4890,36 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                     )
                                 }
 
-                                // 4. Icon Kecepatan Putar (Seragam tanpa border)
+                                // 4. Icon Fit/Rasio Video (Fit Ukuran Layar, Penuh Zoom, Rentang, 16:9)
+                                IconButton(
+                                    onClick = {
+                                        interactionTick++
+                                        val newMode = viewModel.cycleVideoScaleMode()
+                                        val label = when (newMode) {
+                                            "FIT" -> "Rasio: Fit Layar (Sesuai Ukuran Video)"
+                                            "FILL" -> "Rasio: Penuh Layar / Zoom (FILL)"
+                                            "STRETCH" -> "Rasio: Rentang Layar Penuh (STRETCH)"
+                                            "16:9" -> "Rasio: Format Bioskop (16:9)"
+                                            else -> "Rasio: $newMode"
+                                        }
+                                        Toast.makeText(context, label, Toast.LENGTH_SHORT).show()
+                                    },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = when (videoScaleMode) {
+                                            "FIT" -> Icons.Default.FitScreen
+                                            "FILL" -> Icons.Default.AspectRatio
+                                            "16:9" -> Icons.Default.Tv
+                                            else -> Icons.Default.FitScreen
+                                        },
+                                        contentDescription = "Fit Rasio Video",
+                                        tint = if (videoScaleMode != "FIT") PrimaryGold else TextPrimary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+
+                                // 5. Icon Kecepatan Putar (Seragam tanpa border)
                                 IconButton(
                                     onClick = {
                                         interactionTick++
@@ -4803,7 +4935,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                     )
                                 }
 
-                                // 5. Icon Kunci Layar (Seragam tanpa border)
+                                // 6. Icon Kunci Layar (Seragam tanpa border)
                                 IconButton(
                                     onClick = {
                                         interactionTick++
@@ -5049,28 +5181,30 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 Icon(Icons.Default.Forward10, contentDescription = "Maju 10 Detik", tint = TextPrimary, modifier = Modifier.size(24.dp))
                             }
 
-                            // Responsive Orientation-Aware Fullscreen Button (Preserves current portrait or landscape orientation)
-                            IconButton(onClick = {
-                                interactionTick++
-                                val newFullscreen = !viewModel.isVideoFullscreen
-                                viewModel.isVideoFullscreen = newFullscreen
-                                activity?.let { act ->
-                                    val window = act.window
-                                    val insetsController = WindowCompat.getInsetsController(window, window.decorView)
-                                    if (newFullscreen) {
-                                        insetsController.hide(WindowInsetsCompat.Type.systemBars())
-                                        insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                                        // Do not force landscape - preserve user's current screen orientation (portrait or landscape)
-                                        act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_USER
-                                    } else {
-                                        insetsController.show(WindowInsetsCompat.Type.systemBars())
-                                        act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                            // Responsive Fullscreen & Video Aspect Ratio Fit Button
+                            IconButton(
+                                onClick = {
+                                    interactionTick++
+                                    val newFullscreen = !viewModel.isVideoFullscreen
+                                    viewModel.isVideoFullscreen = newFullscreen
+                                    activity?.let { act ->
+                                        val window = act.window
+                                        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+                                        if (newFullscreen) {
+                                            insetsController.hide(WindowInsetsCompat.Type.systemBars())
+                                            insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                                            act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_USER
+                                            Toast.makeText(context, "Layar Penuh • Rasio: ${viewModel.videoScaleMode.value}", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            insetsController.show(WindowInsetsCompat.Type.systemBars())
+                                            act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                                        }
                                     }
                                 }
-                            }) {
+                            ) {
                                 Icon(
                                     imageVector = if (viewModel.isVideoFullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
-                                    contentDescription = "Layar Penuh",
+                                    contentDescription = "Layar Penuh / Fit Rasio",
                                     tint = PrimaryGold,
                                     modifier = Modifier.size(24.dp)
                                 )
@@ -5353,6 +5487,8 @@ fun WaveVisualizer(
             "Teal" -> accentTeal
             "Aurora" -> Color(0xFFE040FB)
             "Emerald" -> Color(0xFF00E676)
+            "Cyber" -> Color(0xFFFF007F)
+            "Fire" -> Color(0xFFFF5722)
             else -> accentTeal
         }
         val colorSecondary = when (colorTheme) {
@@ -5360,29 +5496,49 @@ fun WaveVisualizer(
             "Teal" -> Color(0xFF00E5FF)
             "Aurora" -> Color(0xFFFF4081)
             "Emerald" -> Color(0xFFCCFF00)
+            "Cyber" -> Color(0xFF00F0FF)
+            "Fire" -> Color(0xFFFFEB3B)
             else -> Color(0xFF00D2FF)
         }
         val colorTertiary = when (colorTheme) {
-            "Gold" -> Color(0xFFFFD54F).copy(alpha = 0.4f)
-            "Teal" -> Color(0xFF80DEEA).copy(alpha = 0.4f)
-            "Aurora" -> Color(0xFFEA80FC).copy(alpha = 0.4f)
-            "Emerald" -> Color(0xFFA7FFEB).copy(alpha = 0.4f)
-            else -> Color(0xFF80DEEA).copy(alpha = 0.4f)
+            "Gold" -> Color(0xFFFFD54F).copy(alpha = 0.5f)
+            "Teal" -> Color(0xFF80DEEA).copy(alpha = 0.5f)
+            "Aurora" -> Color(0xFFEA80FC).copy(alpha = 0.5f)
+            "Emerald" -> Color(0xFFA7FFEB).copy(alpha = 0.5f)
+            "Cyber" -> Color(0xFFFF80AB).copy(alpha = 0.5f)
+            "Fire" -> Color(0xFFFFAB91).copy(alpha = 0.5f)
+            else -> Color(0xFF80DEEA).copy(alpha = 0.5f)
         }
 
-        when (model) {
+        val effectiveModel = if (model == "Random") {
+            // Dynamic cycling based on phase or time
+            val cycle = ((phase / (2f * Math.PI.toFloat()) * 7f).toInt()) % 7
+            when (cycle) {
+                0 -> "Wave"
+                1 -> "Bars"
+                2 -> "Mirror"
+                3 -> "NeonPulse"
+                4 -> "Circular"
+                5 -> "CyberWave"
+                else -> "Particles"
+            }
+        } else {
+            model
+        }
+
+        when (effectiveModel) {
             "Bars" -> {
                 // Interactive Equalization bars moving with phase and amplitude
-                val barCount = 28
-                val padding = 5f
+                val barCount = 32
+                val padding = 4f
                 val totalPadding = padding * (barCount - 1)
                 val barWidth = (width - totalPadding) / barCount
 
                 for (i in 0 until barCount) {
                     val waveVal = sin(i.toFloat() * 0.28f + phase)
                     val normalized = (waveVal + 1f) / 2f
-                    val maxH = height * 0.75f
-                    val minH = 12f
+                    val maxH = height * 0.85f
+                    val minH = 14f
                     val barHeight = minH + (maxH - minH) * normalized * amplitudeMultiplier
 
                     val rx = i * (barWidth + padding)
@@ -5390,17 +5546,17 @@ fun WaveVisualizer(
 
                     drawRoundRect(
                         brush = Brush.verticalGradient(
-                            colors = listOf(colorPrimary, colorSecondary.copy(alpha = 0.4f))
+                            colors = listOf(colorPrimary, colorSecondary.copy(alpha = 0.7f), colorTertiary)
                         ),
                         topLeft = Offset(rx, ry),
                         size = Size(barWidth, barHeight),
-                        cornerRadius = CornerRadius(4f, 4f)
+                        cornerRadius = CornerRadius(6f, 6f)
                     )
                 }
             }
             "Mirror" -> {
                 // Mirrored center-out spectrum bars
-                val barCount = 32
+                val barCount = 36
                 val padding = 4f
                 val totalPadding = padding * (barCount - 1)
                 val barWidth = (width - totalPadding) / barCount
@@ -5408,9 +5564,9 @@ fun WaveVisualizer(
                 for (i in 0 until barCount) {
                     val distFromCenter = kotlin.math.abs(i - barCount / 2f) / (barCount / 2f)
                     val waveVal = sin((i * 0.35f) + phase * 1.2f)
-                    val normalized = ((waveVal + 1f) / 2f) * (1f - distFromCenter * 0.5f)
-                    val maxH = (height / 2f) * 0.85f
-                    val halfH = (6f + maxH * normalized * amplitudeMultiplier)
+                    val normalized = ((waveVal + 1f) / 2f) * (1f - distFromCenter * 0.4f)
+                    val maxH = (height / 2f) * 0.9f
+                    val halfH = (8f + maxH * normalized * amplitudeMultiplier)
 
                     val rx = i * (barWidth + padding)
                     val ry = centerY - halfH
@@ -5421,18 +5577,18 @@ fun WaveVisualizer(
                         ),
                         topLeft = Offset(rx, ry),
                         size = Size(barWidth, halfH * 2f),
-                        cornerRadius = CornerRadius(4f, 4f)
+                        cornerRadius = CornerRadius(6f, 6f)
                     )
                 }
             }
             "Particles" -> {
                 // Floating dynamic audio particles
-                val particleCount = 40
+                val particleCount = 50
                 for (i in 0 until particleCount) {
                     val seed = i.toFloat() * 17.3f
                     val px = ((seed * 37f + phase * 40f) % width + width) % width
-                    val py = centerY + sin(phase * 1.5f + i.toFloat()) * (height * 0.35f * amplitudeMultiplier)
-                    val pRadius = 3f + (sin(phase + i) + 1f) * 2.5f * amplitudeMultiplier
+                    val py = centerY + sin(phase * 1.5f + i.toFloat()) * (height * 0.4f * amplitudeMultiplier)
+                    val pRadius = 3.5f + (sin(phase + i) + 1f) * 3f * amplitudeMultiplier
                     val color = if (i % 2 == 0) colorPrimary else colorSecondary
 
                     drawCircle(
@@ -5444,12 +5600,12 @@ fun WaveVisualizer(
             }
             "Dots" -> {
                 // Dotted frequency curve
-                val dotCount = 36
+                val dotCount = 40
                 val step = width / dotCount
                 for (i in 0 until dotCount) {
                     val dx = i * step + step / 2f
-                    val dy = centerY + sin(i.toFloat() * 0.25f + phase) * (height * 0.32f * amplitudeMultiplier)
-                    val radius = 4.5f + (sin(phase * 2f + i) + 1f) * 2f * amplitudeMultiplier
+                    val dy = centerY + sin(i.toFloat() * 0.25f + phase) * (height * 0.38f * amplitudeMultiplier)
+                    val radius = 5f + (sin(phase * 2f + i) + 1f) * 2.5f * amplitudeMultiplier
 
                     drawCircle(
                         color = colorPrimary,
@@ -5466,34 +5622,92 @@ fun WaveVisualizer(
             }
             "NeonPulse" -> {
                 // Cyber glowing ribbon pulse
-                val ribbonCount = 5
+                val ribbonCount = 6
                 for (r in 0 until ribbonCount) {
-                    val rPhase = phase + r * 0.6f
-                    val rAmp = (height * 0.28f - r * 6f) * amplitudeMultiplier
-                    val rColor = if (r % 2 == 0) colorPrimary.copy(alpha = 0.8f - r * 0.12f) else colorSecondary.copy(alpha = 0.8f - r * 0.12f)
+                    val rPhase = phase + r * 0.5f
+                    val rAmp = (height * 0.35f - r * 6f) * amplitudeMultiplier
+                    val rColor = if (r % 2 == 0) colorPrimary.copy(alpha = (0.85f - r * 0.1f).coerceAtLeast(0.2f)) else colorSecondary.copy(alpha = (0.85f - r * 0.1f).coerceAtLeast(0.2f))
 
                     val path = Path()
                     path.moveTo(0f, centerY)
-                    for (x in 0..width.toInt() step 8) {
+                    for (x in 0..width.toInt() step 6) {
                         val y = centerY + sin(x.toFloat() * 0.02f + rPhase) * rAmp * cos(x.toFloat() * 0.005f + rPhase * 0.5f)
                         path.lineTo(x.toFloat(), y)
                     }
                     drawPath(
                         path = path,
                         color = rColor,
-                        style = Stroke(width = 5f - r * 0.6f, cap = StrokeCap.Round)
+                        style = Stroke(width = (6f - r * 0.7f).coerceAtLeast(1.5f), cap = StrokeCap.Round)
+                    )
+                }
+            }
+            "LaserBeam" -> {
+                // High-energy laser beam visualizer with horizontal pulses
+                val beamCount = 8
+                for (b in 0 until beamCount) {
+                    val bPhase = phase * 2f + b * 0.8f
+                    val bAmp = (height * 0.4f) * amplitudeMultiplier
+                    val startY = centerY + sin(bPhase) * bAmp
+                    val endY = centerY - sin(bPhase + 1f) * bAmp
+
+                    drawLine(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(Color.Transparent, colorPrimary, colorSecondary, Color.Transparent)
+                        ),
+                        start = Offset(0f, startY),
+                        end = Offset(width, endY),
+                        strokeWidth = (4f + sin(phase + b) * 2f).coerceAtLeast(1.5f),
+                        cap = StrokeCap.Round
+                    )
+                }
+            }
+            "FireFlame" -> {
+                // Upward flame effect
+                val flameCount = 30
+                val colWidth = width / flameCount
+                for (f in 0 until flameCount) {
+                    val fVal = (sin(f * 0.4f + phase * 2.5f) + 1f) / 2f
+                    val fHeight = (height * 0.8f) * fVal * amplitudeMultiplier
+                    val fx = f * colWidth
+                    val fy = height - fHeight
+
+                    drawRoundRect(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(colorPrimary, colorSecondary, Color(0xFFFF5722).copy(alpha = 0.2f))
+                        ),
+                        topLeft = Offset(fx, fy),
+                        size = Size(colWidth * 0.85f, fHeight),
+                        cornerRadius = CornerRadius(10f, 10f)
+                    )
+                }
+            }
+            "CyberWave" -> {
+                // Matrix cyber wave
+                val steps = 40
+                val stepX = width / steps
+                for (s in 0 until steps) {
+                    val angle = s * 0.3f + phase * 1.5f
+                    val sy = centerY + sin(angle) * (height * 0.35f * amplitudeMultiplier)
+                    val barH = (20f + 30f * cos(angle * 0.5f) * amplitudeMultiplier).coerceAtLeast(8f)
+
+                    drawLine(
+                        color = if (s % 2 == 0) colorPrimary else colorSecondary,
+                        start = Offset(s * stepX, sy - barH),
+                        end = Offset(s * stepX, sy + barH),
+                        strokeWidth = 3.5f,
+                        cap = StrokeCap.Round
                     )
                 }
             }
             "Circular" -> {
                 // Circular artistic pulsing neon ring
-                val radius = 28f + (16f * amplitudeMultiplier * (sin(phase * 1.5f) + 1f) / 2f)
-                val center = Offset(width / 2, height / 2)
+                val radius = (height * 0.25f).coerceIn(35f, 100f) + (20f * amplitudeMultiplier * (sin(phase * 1.5f) + 1f) / 2f)
+                val center = Offset(width / 2, centerY)
 
                 // Glow aura circles
                 drawCircle(
-                    color = colorPrimary.copy(alpha = 0.15f),
-                    radius = radius + 25f,
+                    color = colorPrimary.copy(alpha = 0.18f),
+                    radius = radius + 30f,
                     center = center
                 )
                 // Outer ring
@@ -5501,21 +5715,21 @@ fun WaveVisualizer(
                     color = colorPrimary,
                     radius = radius,
                     center = center,
-                    style = Stroke(width = 3.5f)
+                    style = Stroke(width = 4f)
                 )
                 // Inner core orb
                 drawCircle(
-                    color = colorSecondary,
-                    radius = radius * 0.55f,
+                    color = colorSecondary.copy(alpha = 0.8f),
+                    radius = radius * 0.5f,
                     center = center,
                     style = Fill
                 )
 
                 // Outer stellar sound rays
-                val rayCount = 16
+                val rayCount = 20
                 for (i in 0 until rayCount) {
                     val angle = (i * (360f / rayCount)) * Math.PI / 180.0
-                    val len = 10f + (14f * amplitudeMultiplier * (sin(phase + i) + 1f) / 2f)
+                    val len = 12f + (20f * amplitudeMultiplier * (sin(phase * 1.8f + i) + 1f) / 2f)
                     val sx = center.x + cos(angle).toFloat() * (radius + 6f)
                     val sy = center.y + sin(angle).toFloat() * (radius + 6f)
                     val ex = center.x + cos(angle).toFloat() * (radius + 6f + len)
@@ -5525,7 +5739,7 @@ fun WaveVisualizer(
                         color = colorSecondary.copy(alpha = 0.85f),
                         start = Offset(sx, sy),
                         end = Offset(ex, ey),
-                        strokeWidth = 3f,
+                        strokeWidth = 3.5f,
                         cap = StrokeCap.Round
                     )
                 }
@@ -5537,9 +5751,9 @@ fun WaveVisualizer(
                     centerY = centerY,
                     phase = phase,
                     frequency = 0.02f,
-                    amplitude = 32f * amplitudeMultiplier,
+                    amplitude = (height * 0.25f) * amplitudeMultiplier,
                     color = colorTertiary,
-                    strokeWidth = 3f,
+                    strokeWidth = 3.5f,
                     isDotted = true
                 )
 
@@ -5548,9 +5762,9 @@ fun WaveVisualizer(
                     centerY = centerY,
                     phase = phase - 1.5f,
                     frequency = 0.012f,
-                    amplitude = 42f * amplitudeMultiplier,
-                    color = colorSecondary.copy(alpha = 0.55f),
-                    strokeWidth = 4f
+                    amplitude = (height * 0.35f) * amplitudeMultiplier,
+                    color = colorSecondary.copy(alpha = 0.65f),
+                    strokeWidth = 4.5f
                 )
 
                 drawSineWave(
@@ -5558,9 +5772,9 @@ fun WaveVisualizer(
                     centerY = centerY,
                     phase = phase + 1.2f,
                     frequency = 0.035f,
-                    amplitude = 25f * amplitudeMultiplier,
+                    amplitude = (height * 0.22f) * amplitudeMultiplier,
                     color = colorPrimary,
-                    strokeWidth = 6f
+                    strokeWidth = 6.5f
                 )
             }
         }

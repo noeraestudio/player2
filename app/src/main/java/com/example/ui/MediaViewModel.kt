@@ -276,12 +276,63 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
         _dynamicVolumeLeveler.value = enabled
     }
 
-    // Background Style / Layout Atmosphere (Acrylic Glass, Dark Studio Carbon, Vibrant Radial Glow, Gradient Mist)
-    private val _backgroundStyle = MutableStateFlow("Acrylic Glass")
+    // Background Style / Layout Atmosphere (Standard, Gradasi Sunset, Gradasi Aurora, Gradasi Cyber, Classic Modern, Solid Minimal, Animasi Cahaya, Neon Glow, Mica Frosted)
+    private val _backgroundStyle = MutableStateFlow("Standard")
     val backgroundStyle: StateFlow<String> = _backgroundStyle.asStateFlow()
 
     fun setBackgroundStyle(style: String) {
         _backgroundStyle.value = style
+    }
+
+    // Audio Label Presentation Style: "transparan" (default), "solid" (clean white/solid card), "sembunyi" (hidden label for full spectrum showcase)
+    private val _audioLabelStyle = MutableStateFlow("transparan")
+    val audioLabelStyle: StateFlow<String> = _audioLabelStyle.asStateFlow()
+
+    fun setAudioLabelStyle(style: String) {
+        _audioLabelStyle.value = style
+    }
+
+    // Visualizer Model & Color Selection
+    private val _visualizerModel = MutableStateFlow("Random")
+    val visualizerModel: StateFlow<String> = _visualizerModel.asStateFlow()
+
+    fun setVisualizerModel(model: String) {
+        _visualizerModel.value = model
+    }
+
+    private val _visualizerColorTheme = MutableStateFlow("Teal")
+    val visualizerColorTheme: StateFlow<String> = _visualizerColorTheme.asStateFlow()
+
+    fun setVisualizerColorTheme(theme: String) {
+        _visualizerColorTheme.value = theme
+    }
+
+    // Video Screen Scale & Fit Mode: "FIT" (Fit ratio), "FILL" (Penuh/Zoom), "STRETCH" (Rentang), "16:9", "4:3"
+    private val _videoScaleMode = MutableStateFlow("FIT")
+    val videoScaleMode: StateFlow<String> = _videoScaleMode.asStateFlow()
+
+    fun setVideoScaleMode(mode: String) {
+        _videoScaleMode.value = mode
+    }
+
+    fun cycleVideoScaleMode(): String {
+        val modes = listOf("FIT", "FILL", "STRETCH", "16:9")
+        val curIdx = modes.indexOf(_videoScaleMode.value)
+        val nextMode = if (curIdx != -1 && curIdx < modes.size - 1) modes[curIdx + 1] else modes[0]
+        _videoScaleMode.value = nextMode
+        val label = when (nextMode) {
+            "FIT" -> "Rasio Pas (Fit)"
+            "FILL" -> "Penuh Layar (Fill/Zoom)"
+            "STRETCH" -> "Rentang Penuh (Stretch)"
+            "16:9" -> "Format Sinema (16:9)"
+            else -> nextMode
+        }
+        _downloadStatus.value = "Skala Video: $label"
+        viewModelScope.launch {
+            delay(1800)
+            _downloadStatus.value = null
+        }
+        return nextMode
     }
 
     // AB Repeat State
@@ -1561,6 +1612,52 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
                         playVideoTrack(first)
                     }
                     activeScreen = if (first.isVideo) "Video" else "Player"
+                }
+            }
+        }
+    }
+
+    fun importMultipleUris(context: android.content.Context, uris: List<Uri>) {
+        viewModelScope.launch {
+            _downloadStatus.value = "Memuat ${uris.size} berkas dari penyimpanan..."
+            val addedTracks = mutableListOf<MediaTrack>()
+            for (uri in uris) {
+                try {
+                    context.contentResolver.takePersistableUriPermission(
+                        uri,
+                        android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                } catch (e: Exception) {}
+                val displayName = getFileNameFromUri(context, uri) ?: "Berkas Penyimpanan"
+                val ext = displayName.substringAfterLast('.', "MP3").uppercase()
+                val cleanTitle = displayName.substringBeforeLast('.').replace("_", " ").replace("-", " ")
+                val isVideo = ext in listOf("MP4", "MKV", "AVI", "3GP", "MOV", "WEBM")
+                val mediaTrack = MediaTrack(
+                    title = cleanTitle,
+                    artist = "Penyimpanan Utama",
+                    album = "Berkas Penyimpanan",
+                    genre = if (isVideo) "Video Pilihan" else "Musik Pilihan",
+                    filePath = uri.toString(),
+                    isVideo = isVideo,
+                    duration = 180000L,
+                    format = ext,
+                    isDownloaded = true,
+                    lyricsLrc = "[00:00.00]Lirik lokal untuk $cleanTitle"
+                )
+                val trackId = repository.insertTrack(mediaTrack)
+                addedTracks.add(mediaTrack.copy(id = trackId))
+            }
+            _downloadStatus.value = "Berhasil memuat ${addedTracks.size} berkas!"
+            delay(1500)
+            _downloadStatus.value = null
+            if (addedTracks.isNotEmpty()) {
+                val first = addedTracks.first()
+                if (first.isVideo) {
+                    playVideoTrack(first)
+                    activeScreen = "Video"
+                } else {
+                    playTrack(first)
+                    activeScreen = "Player"
                 }
             }
         }
