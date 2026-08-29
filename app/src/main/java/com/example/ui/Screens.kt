@@ -82,6 +82,15 @@ import kotlinx.coroutines.launch
 import kotlin.math.sin
 import kotlin.math.cos
 
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.core.content.FileProvider
+import android.content.Intent
+import android.media.MediaMetadataRetriever
+import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
 fun Context.findActivity(): Activity? {
     var currentContext = this
     while (currentContext is ContextWrapper) {
@@ -91,6 +100,145 @@ fun Context.findActivity(): Activity? {
         currentContext = currentContext.baseContext
     }
     return null
+}
+
+fun shareMediaTrack(context: Context, track: MediaTrack) {
+    try {
+        val sendIntent = Intent().apply {
+            action = Intent.ACTION_SEND
+            if (track.filePath.startsWith("content://")) {
+                putExtra(Intent.EXTRA_STREAM, Uri.parse(track.filePath))
+                type = if (track.isVideo) "video/*" else "audio/*"
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } else if (!track.filePath.startsWith("http")) {
+                val file = File(track.filePath)
+                if (file.exists()) {
+                    val uri = FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.provider",
+                        file
+                    )
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    type = if (track.isVideo) "video/*" else "audio/*"
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                } else {
+                    putExtra(Intent.EXTRA_TEXT, "Mendengarkan: ${track.title} - ${track.artist}")
+                    type = "text/plain"
+                }
+            } else {
+                putExtra(Intent.EXTRA_TEXT, "Mendengarkan: ${track.title} - ${track.artist}")
+                type = "text/plain"
+            }
+        }
+        val chooser = Intent.createChooser(sendIntent, "Bagikan Berkas Media")
+        chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(chooser)
+    } catch (e: Exception) {
+        try {
+            val fallbackIntent = Intent().apply {
+                action = Intent.ACTION_SEND
+                putExtra(Intent.EXTRA_TEXT, "${track.title} - ${track.artist}")
+                type = "text/plain"
+            }
+            context.startActivity(Intent.createChooser(fallbackIntent, "Bagikan"))
+        } catch (ex: Exception) {
+            Toast.makeText(context, "Gagal membagikan berkas", Toast.LENGTH_SHORT).show()
+        }
+    }
+}
+
+fun shareFolderPath(context: Context, folderName: String) {
+    try {
+        val intent = Intent().apply {
+            action = Intent.ACTION_SEND
+            putExtra(Intent.EXTRA_TEXT, "Folder Media: $folderName")
+            type = "text/plain"
+        }
+        val chooser = Intent.createChooser(intent, "Bagikan Folder")
+        chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(chooser)
+    } catch (e: Exception) {
+        Toast.makeText(context, "Gagal membagikan folder", Toast.LENGTH_SHORT).show()
+    }
+}
+
+@Composable
+fun AnimatedVideoThumbnail(
+    filePath: String,
+    modifier: Modifier = Modifier
+) {
+    var frameBitmap by remember(filePath) { mutableStateOf<android.graphics.Bitmap?>(null) }
+    val context = LocalContext.current
+
+    LaunchedEffect(filePath) {
+        withContext(Dispatchers.IO) {
+            val retriever = MediaMetadataRetriever()
+            try {
+                if (filePath.startsWith("content://") || filePath.startsWith("android.resource://")) {
+                    retriever.setDataSource(context, Uri.parse(filePath))
+                } else if (!filePath.startsWith("http")) {
+                    val file = File(filePath)
+                    if (file.exists()) {
+                        retriever.setDataSource(file.absolutePath)
+                    }
+                }
+                val durationStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                val durationUs = (durationStr?.toLongOrNull() ?: 10000L) * 1000L
+                val timePoints = listOf(
+                    durationUs / 5,
+                    (durationUs * 2) / 5,
+                    (durationUs * 3) / 5,
+                    (durationUs * 4) / 5
+                )
+                var idx = 0
+                while (true) {
+                    val timeUs = timePoints[idx % timePoints.size]
+                    val bmp = retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                    if (bmp != null) {
+                        withContext(Dispatchers.Main) {
+                            frameBitmap = bmp
+                        }
+                    }
+                    idx++
+                    delay(1400)
+                }
+            } catch (e: Exception) {
+                // fallback gracefully
+            } finally {
+                try { retriever.release() } catch (e: Exception) {}
+            }
+        }
+    }
+
+    Box(
+        modifier = modifier.background(Color.Black.copy(alpha = 0.4f)),
+        contentAlignment = Alignment.Center
+    ) {
+        if (frameBitmap != null) {
+            androidx.compose.foundation.Image(
+                bitmap = frameBitmap!!.asImageBitmap(),
+                contentDescription = "Video Thumbnail Bergerak",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(4.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(Color.Black.copy(alpha = 0.65f))
+                    .padding(horizontal = 4.dp, vertical = 1.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = AccentTeal, modifier = Modifier.size(10.dp))
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text("LIVE", color = AccentTeal, fontSize = 7.sp, fontWeight = FontWeight.ExtraBold)
+                }
+            }
+        } else {
+            Icon(Icons.Default.Movie, contentDescription = null, tint = AccentTeal, modifier = Modifier.size(36.dp))
+        }
+    }
 }
 
 // --- DYNAMIC THEMING SYSTEM & COLOR CONSTANTS ---
@@ -328,8 +476,8 @@ fun HarmoniMainScreen(viewModel: MediaViewModel) {
                                     ) {
                                         val navItems = listOf(
                                             Triple<String, ImageVector, String>("Library", Icons.Default.LibraryMusic, "Pustaka"),
+                                            Triple<String, ImageVector, String>("FolderNav", Icons.Default.Folder, "Folder"),
                                             Triple<String, ImageVector, String>("Player", Icons.Default.MusicNote, "Audio"),
-                                            Triple<String, ImageVector, String>("Search", Icons.Default.Search, "Cari"),
                                             Triple<String, ImageVector, String>("Video", Icons.Default.Movie, "Video"),
                                             Triple<String, ImageVector, String>("Playlist", Icons.Default.PlaylistPlay, "Playlist")
                                         )
@@ -338,7 +486,13 @@ fun HarmoniMainScreen(viewModel: MediaViewModel) {
                                             val route = item.first
                                             val icon = item.second
                                             val label = item.third
-                                            val isSelected = activeScreen == route
+                                            val isSelected = if (route == "FolderNav") {
+                                                activeScreen == "Library" && viewModel.selectedMediaTab == "Folder"
+                                            } else if (route == "Library") {
+                                                activeScreen == "Library" && viewModel.selectedMediaTab != "Folder"
+                                            } else {
+                                                activeScreen == route
+                                            }
 
                                             Column(
                                                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -347,7 +501,19 @@ fun HarmoniMainScreen(viewModel: MediaViewModel) {
                                                     .weight(1f)
                                                     .clip(RoundedCornerShape(12.dp))
                                                     .background(if (isSelected) PrimaryGold.copy(alpha = 0.15f) else Color.Transparent)
-                                                    .clickable { viewModel.activeScreen = route }
+                                                    .clickable {
+                                                        if (route == "FolderNav") {
+                                                            viewModel.selectedMediaTab = "Folder"
+                                                            viewModel.activeScreen = "Library"
+                                                        } else if (route == "Library") {
+                                                            if (viewModel.selectedMediaTab == "Folder") {
+                                                                viewModel.selectedMediaTab = "Audio"
+                                                            }
+                                                            viewModel.activeScreen = "Library"
+                                                        } else {
+                                                            viewModel.activeScreen = route
+                                                        }
+                                                    }
                                                     .padding(vertical = 6.dp)
                                                     .testTag("nav_item_${route.lowercase()}")
                                             ) {
@@ -576,6 +742,7 @@ fun StudioDrawerContent(
     val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
     val selectedThemeId by viewModel.selectedThemeId.collectAsStateWithLifecycle()
     val bgTransparency by viewModel.backgroundTransparency.collectAsStateWithLifecycle()
+    val backgroundStyle by viewModel.backgroundStyle.collectAsStateWithLifecycle()
 
     val isEffectsEnabled by viewModel.isEffectsEnabled.collectAsStateWithLifecycle()
     val reverbPreset by viewModel.reverbPreset.collectAsStateWithLifecycle()
@@ -583,6 +750,10 @@ fun StudioDrawerContent(
     val superBassStrength by viewModel.superBassStrength.collectAsStateWithLifecycle()
     val virtualizer3DStrength by viewModel.virtualizer3DStrength.collectAsStateWithLifecycle()
     val lrAudioBalance by viewModel.lrAudioBalance.collectAsStateWithLifecycle()
+    val vocalClarity by viewModel.vocalClarity.collectAsStateWithLifecycle()
+    val trebleSparkle by viewModel.trebleSparkle.collectAsStateWithLifecycle()
+    val warmTubeSaturation by viewModel.warmTubeSaturation.collectAsStateWithLifecycle()
+    val dynamicVolumeLeveler by viewModel.dynamicVolumeLeveler.collectAsStateWithLifecycle()
 
     val isEqualizerEnabled by viewModel.isEqualizerEnabled.collectAsStateWithLifecycle()
     val equalizerBands by viewModel.equalizerBands.collectAsStateWithLifecycle()
@@ -719,17 +890,17 @@ fun StudioDrawerContent(
                         Spacer(modifier = Modifier.height(10.dp))
 
                         // Theme Color Accent Swatches Grid
-                        Text("Pilihan Warna", fontSize = 11.sp, color = UnselectedWhite, fontWeight = FontWeight.Bold)
+                        Text("Pilihan Warna Tema", fontSize = 11.sp, color = UnselectedWhite, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(6.dp))
 
                         val themePalettes = listOf(
                             Triple("Gold", "Gold", Color(0xFFFFB900)),
+                            Triple("Orange", "Orange", Color(0xFFF7630C)),
                             Triple("Blue", "Blue", Color(0xFF0078D7)),
                             Triple("Teal", "Teal", Color(0xFF00B7C3)),
                             Triple("Purple", "Purple", Color(0xFF881798)),
                             Triple("Emerald", "Green", Color(0xFF107C41)),
                             Triple("Crimson", "Red", Color(0xFFE81123)),
-                            Triple("Orange", "Orange", Color(0xFFF7630C)),
                             Triple("Silver", "Silver", Color(0xFFE1DFDD))
                         )
 
@@ -766,6 +937,44 @@ fun StudioDrawerContent(
                                             )
                                         }
                                     }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Background Layout Styles
+                        Text("Gaya Layout Latar Belakang", fontSize = 11.sp, color = UnselectedWhite, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        val bgStyles = listOf(
+                            "Standard" to "Standar",
+                            "Carbon Studio" to "Karbon",
+                            "Radial Warmth" to "Radial",
+                            "Gradient Mist" to "Gradasi"
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            bgStyles.forEach { (styleKey, styleLabel) ->
+                                val isSelected = backgroundStyle == styleKey
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(if (isSelected) PrimaryGold.copy(alpha = 0.2f) else DividerColor.copy(alpha = 0.15f))
+                                        .border(1.dp, if (isSelected) PrimaryGold else DividerColor.copy(alpha = 0.35f), RoundedCornerShape(6.dp))
+                                        .clickable { viewModel.setBackgroundStyle(styleKey) }
+                                        .padding(vertical = 5.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = styleLabel,
+                                        fontSize = 9.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isSelected) PrimaryGold else UnselectedWhite
+                                    )
                                 }
                             }
                         }
@@ -933,14 +1142,14 @@ fun StudioDrawerContent(
                                 Text(
                                     text = if (pitchSemiTones > 0f) "+${String.format("%.1f", pitchSemiTones)} Nada"
                                            else if (pitchSemiTones < 0f) "${String.format("%.1f", pitchSemiTones)} Nada"
-                                           else "Normal (0)",
+                                           else "1",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = PrimaryGold
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Reset",
+                                    text = "1",
                                     fontSize = 9.sp,
                                     color = AccentTeal,
                                     fontWeight = FontWeight.Bold,
@@ -1003,7 +1212,92 @@ fun StudioDrawerContent(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // 5. L / R AUDIO (STEREO PAN BALANCE)
+                        // 5. VOCAL CLARITY BOOST
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("KEJERNIHAN VOKAL (VOCAL CLARITY)", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = PrimaryGold)
+                            Text("${(vocalClarity * 100).toInt()}%", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = PrimaryGold)
+                        }
+                        RoundSlider(
+                            value = vocalClarity,
+                            onValueChange = { viewModel.setVocalClarity(it) },
+                            valueRange = 0f..1f,
+                            enabled = isEffectsEnabled,
+                            activeColor = PrimaryGold,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // 6. TREBLE AIR & SPARKLE
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("TREBLE AIR & SPARKLE (DETAIL TINGGI)", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AccentTeal)
+                            Text("${(trebleSparkle * 100).toInt()}%", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AccentTeal)
+                        }
+                        RoundSlider(
+                            value = trebleSparkle,
+                            onValueChange = { viewModel.setTrebleSparkle(it) },
+                            valueRange = 0f..1f,
+                            enabled = isEffectsEnabled,
+                            activeColor = AccentTeal,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // 7. WARM ANALOG TUBE SATURATION
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("WARM TUBE SATURATION (SUARA HANGAT)", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = PrimaryGold)
+                            Text("${(warmTubeSaturation * 100).toInt()}%", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = PrimaryGold)
+                        }
+                        RoundSlider(
+                            value = warmTubeSaturation,
+                            onValueChange = { viewModel.setWarmTubeSaturation(it) },
+                            valueRange = 0f..1f,
+                            enabled = isEffectsEnabled,
+                            activeColor = PrimaryGold,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // 8. DYNAMIC VOLUME LEVELER
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text("DYNAMIC VOLUME LEVELER", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                                Text("Penyeimbang volume antar lagu", fontSize = 9.sp, color = UnselectedWhite)
+                            }
+                            Switch(
+                                checked = dynamicVolumeLeveler,
+                                onCheckedChange = { viewModel.setDynamicVolumeLeveler(it) },
+                                enabled = isEffectsEnabled,
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color(0xFF101014),
+                                    checkedTrackColor = PrimaryGold,
+                                    uncheckedTrackColor = DividerColor.copy(alpha = 0.4f)
+                                ),
+                                modifier = Modifier.height(22.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // 9. L / R AUDIO (STEREO PAN BALANCE)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1014,14 +1308,14 @@ fun StudioDrawerContent(
                                 Text(
                                     text = if (lrAudioBalance < -0.05f) "Kiri (${(-lrAudioBalance * 100).toInt()}%)"
                                            else if (lrAudioBalance > 0.05f) "Kanan (${(lrAudioBalance * 100).toInt()}%)"
-                                           else "Tengah (Center)",
+                                           else "1",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = AccentTeal
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Tengah",
+                                    text = "1",
                                     fontSize = 9.sp,
                                     color = PrimaryGold,
                                     fontWeight = FontWeight.Bold,
@@ -1029,7 +1323,7 @@ fun StudioDrawerContent(
                                         .clip(RoundedCornerShape(4.dp))
                                         .background(DividerColor.copy(alpha = 0.3f))
                                         .clickable(enabled = isEffectsEnabled) { viewModel.setLrAudioBalance(0f) }
-                                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
                                 )
                             }
                         }
@@ -1381,7 +1675,10 @@ fun StudioDrawerContent(
 fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val tracks by viewModel.allTracks.collectAsStateWithLifecycle()
+    val favoriteFolders by viewModel.favoriteFolders.collectAsStateWithLifecycle()
     var searchQuery by remember { mutableStateOf("") }
+    var isSearchVisible by remember { mutableStateOf(false) }
+    var showHeaderMenu by remember { mutableStateOf(false) }
     val groupSelection = viewModel.selectedMediaTab
     var showFolderScannerDialog by remember { mutableStateOf(false) }
     var trackToDelete by remember { mutableStateOf<MediaTrack?>(null) }
@@ -1492,6 +1789,14 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
         }
     }
 
+    // Sorted folder keys with favorites pinned to the top
+    val sortedFolderNames = remember(folderGroupedTracks, favoriteFolders) {
+        folderGroupedTracks.keys.sortedWith(
+            compareByDescending<String> { favoriteFolders.contains(it) }.thenBy { it.lowercase() }
+        )
+    }
+
+    // Filtered tracks with favorites pinned to the top
     val filteredTracks = remember(tracks, searchQuery, groupSelection, selectedFolder) {
         tracks.filter {
             val matchesQuery = searchQuery.isBlank() ||
@@ -1502,7 +1807,6 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                               it.album.contains(searchQuery, ignoreCase = true)
 
             val matchesGroup = when (groupSelection) {
-                "Semua" -> true
                 "Folder" -> {
                     if (selectedFolder == null) true
                     else {
@@ -1511,14 +1815,15 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                         folderName == selectedFolder
                     }
                 }
-                "Lossless" -> (it.format == "FLAC" || it.format == "WAV")
-                "Video" -> it.isVideo
                 "Audio" -> !it.isVideo
+                "Video" -> it.isVideo
                 else -> true
             }
 
             matchesQuery && matchesGroup
-        }
+        }.sortedWith(
+            compareByDescending<MediaTrack> { it.isFavorite }.thenByDescending { it.dateAdded }
+        )
     }
 
     Column(
@@ -1561,77 +1866,125 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                             letterSpacing = 0.5.sp
                         )
                         Text(
-                            text = if (selectedFolder != null) "Folder: $selectedFolder" else "Pustaka Lagu • ${tracks.size} item",
+                            text = if (selectedFolder != null) "Folder: $selectedFolder" else "Pustaka Media • ${tracks.size} item",
                             fontSize = 11.sp,
                             color = UnselectedWhite
                         )
                     }
                 }
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Grid / List View Toggle
+
+                // Header 3-dot dropdown popup containing Grid, Search, and Reload
+                Box {
                     IconButton(
-                        onClick = { isGridView = !isGridView },
-                        modifier = Modifier.size(36.dp)
+                        onClick = { showHeaderMenu = true },
+                        modifier = Modifier.size(38.dp)
                     ) {
                         Icon(
-                            imageVector = if (isGridView) Icons.Default.ViewList else Icons.Default.GridView,
-                            contentDescription = if (isGridView) "Tampilan List" else "Tampilan Grid",
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "Opsi Pustaka",
                             tint = PrimaryGold,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
 
-                    // Folder scanner button
-                    IconButton(
-                        onClick = { showFolderScannerDialog = true },
-                        modifier = Modifier.size(36.dp)
+                    DropdownMenu(
+                        expanded = showHeaderMenu,
+                        onDismissRequest = { showHeaderMenu = false },
+                        modifier = Modifier.background(CardBackground)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Folder,
-                            contentDescription = "Muat Folder Penyimpanan",
-                            tint = PrimaryGold,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-
-                    // Automatic scan button (Reload Pustaka)
-                    IconButton(
-                        onClick = {
-                            val permissionsToRequest = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                                arrayOf(
-                                    android.Manifest.permission.READ_MEDIA_AUDIO,
-                                    android.Manifest.permission.READ_MEDIA_VIDEO
+                        // 1. Grid/List Toggle
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    if (isGridView) "Daftar" else "Grid",
+                                    color = TextPrimary,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
                                 )
-                            } else {
-                                arrayOf(
-                                    android.Manifest.permission.READ_EXTERNAL_STORAGE
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    if (isGridView) Icons.Default.ViewList else Icons.Default.GridView,
+                                    contentDescription = null,
+                                    tint = PrimaryGold,
+                                    modifier = Modifier.size(20.dp)
                                 )
+                            },
+                            onClick = {
+                                isGridView = !isGridView
+                                showHeaderMenu = false
                             }
-                            
-                            var allGranted = true
-                            for (perm in permissionsToRequest) {
-                                if (androidx.core.content.ContextCompat.checkSelfPermission(context, perm) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                                    allGranted = false
-                                    break
+                        )
+
+                        // 2. Search Toggle
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    "Cari",
+                                    color = TextPrimary,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Search,
+                                    contentDescription = null,
+                                    tint = PrimaryGold,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            onClick = {
+                                isSearchVisible = !isSearchVisible
+                                showHeaderMenu = false
+                            }
+                        )
+
+                        // 3. Reload Scan
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    "Pindai",
+                                    color = TextPrimary,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Refresh,
+                                    contentDescription = null,
+                                    tint = PrimaryGold,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            onClick = {
+                                showHeaderMenu = false
+                                val permissionsToRequest = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                    arrayOf(
+                                        android.Manifest.permission.READ_MEDIA_AUDIO,
+                                        android.Manifest.permission.READ_MEDIA_VIDEO
+                                    )
+                                } else {
+                                    arrayOf(
+                                        android.Manifest.permission.READ_EXTERNAL_STORAGE
+                                    )
+                                }
+                                
+                                var allGranted = true
+                                for (perm in permissionsToRequest) {
+                                    if (androidx.core.content.ContextCompat.checkSelfPermission(context, perm) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                                        allGranted = false
+                                        break
+                                    }
+                                }
+                                
+                                if (allGranted) {
+                                    viewModel.autoScanMusicFolders()
+                                } else {
+                                    permissionLauncher.launch(permissionsToRequest)
                                 }
                             }
-                            
-                            if (allGranted) {
-                                viewModel.autoScanMusicFolders()
-                            } else {
-                                permissionLauncher.launch(permissionsToRequest)
-                            }
-                        },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Pindai Perangkat",
-                            tint = PrimaryGold,
-                            modifier = Modifier.size(22.dp)
                         )
                     }
                 }
@@ -1643,6 +1996,42 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                 .fillMaxSize()
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
+
+        // Search text area (Visible only when Search is clicked from 3-dot popup)
+        AnimatedVisibility(
+            visible = isSearchVisible,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Cari", color = UnselectedWhite) },
+                    leadingIcon = {
+                        Icon(Icons.Default.Search, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(20.dp))
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Close, contentDescription = "Hapus", tint = PrimaryGold, modifier = Modifier.size(18.dp))
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = CardBackground,
+                        unfocusedContainerColor = CardBackground,
+                        focusedBorderColor = PrimaryGold,
+                        unfocusedBorderColor = DividerColor.copy(alpha = 0.4f),
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
 
         // Folder scanner Dialog popup
         if (showFolderScannerDialog) {
@@ -1749,14 +2138,12 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Filtering Chips Row (Ensured crystal clear text above background on any transparency)
+        // Filtering Chips Row: Exactly 3 chips ("Folder", "Audio", "Video")
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            val chips = listOf("Semua", "Folder", "Audio", "Video", "Lossless")
+            val chips = listOf("Folder", "Audio", "Video")
             items(chips) { chip ->
                 val selected = groupSelection == chip
                 Box(
@@ -1775,7 +2162,7 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                             viewModel.selectedMediaTab = chip
                             if (chip != "Folder") selectedFolder = null
                         }
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                        .padding(horizontal = 18.dp, vertical = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -1817,9 +2204,9 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Direct Clean Song List / Grid (Daftar Lagu)
+        // Direct Clean Song List / Grid (Daftar Lagu) - Grid applies to ALL (Folder, Audio, Video)
         if (groupSelection == "Folder" && selectedFolder == null) {
-            // Display folder list overview
+            // Display folder list / grid overview
             if (folderGroupedTracks.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -1829,6 +2216,28 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                 ) {
                     Text("Tidak ada folder ditemukan", color = UnselectedWhite, fontSize = 14.sp)
                 }
+            } else if (isGridView) {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                ) {
+                    gridItems(sortedFolderNames, key = { it }) { folderName ->
+                        val count = folderGroupedTracks[folderName]?.size ?: 0
+                        val isFav = favoriteFolders.contains(folderName)
+                        FolderGridCard(
+                            folderName = folderName,
+                            count = count,
+                            isFavorite = isFav,
+                            onClick = { selectedFolder = folderName },
+                            onToggleFavorite = { viewModel.toggleFavoriteFolder(folderName) },
+                            onShare = { shareFolderPath(context, folderName) }
+                        )
+                    }
+                }
             } else {
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -1836,33 +2245,17 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                         .fillMaxWidth()
                         .weight(1f)
                 ) {
-                    items(folderGroupedTracks.keys.toList()) { folderName ->
+                    items(sortedFolderNames, key = { it }) { folderName ->
                         val count = folderGroupedTracks[folderName]?.size ?: 0
-                        Card(
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = CardBackground),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .border(1.dp, DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f), RoundedCornerShape(12.dp))
-                                .clickable { selectedFolder = folderName }
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(14.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.Folder, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(32.dp))
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(folderName, fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 14.sp)
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text("$count file media", color = UnselectedWhite, fontSize = 11.sp)
-                                }
-                                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = UnselectedWhite)
-                            }
-                        }
+                        val isFav = favoriteFolders.contains(folderName)
+                        FolderItemCard(
+                            folderName = folderName,
+                            count = count,
+                            isFavorite = isFav,
+                            onClick = { selectedFolder = folderName },
+                            onToggleFavorite = { viewModel.toggleFavoriteFolder(folderName) },
+                            onShare = { shareFolderPath(context, folderName) }
+                        )
                     }
                 }
             }
@@ -1881,9 +2274,9 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                         modifier = Modifier.size(64.dp)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Daftar lagu tidak ditemukan", color = UnselectedWhite, fontSize = 16.sp)
+                    Text("Daftar media tidak ditemukan", color = UnselectedWhite, fontSize = 16.sp)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("Tekan tombol segarkan untuk memindai berkas otomatis", color = UnselectedWhite.copy(alpha = 0.6f), fontSize = 12.sp)
+                    Text("Tekan tombol pindaian di menu titik tiga untuk memuat berkas", color = UnselectedWhite.copy(alpha = 0.6f), fontSize = 12.sp)
                 }
             }
         } else {
@@ -1910,6 +2303,8 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                             },
                             onLongClick = { trackToDelete = track },
                             onDelete = { trackToDelete = track },
+                            onToggleFavorite = { viewModel.toggleFavoriteTrack(track) },
+                            onShare = { shareMediaTrack(context, track) },
                             onAddToPlaylist = { viewModel.trackToAddToPlaylist = track }
                         )
                     }
@@ -1939,6 +2334,8 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                             onDelete = {
                                 trackToDelete = track
                             },
+                            onToggleFavorite = { viewModel.toggleFavoriteTrack(track) },
+                            onShare = { shareMediaTrack(context, track) },
                             onDownload = {},
                             onAddToPlaylist = { viewModel.trackToAddToPlaylist = track }
                         )
@@ -1956,8 +2353,12 @@ fun TrackGridCard(
     onClick: () -> Unit,
     onLongClick: () -> Unit = {},
     onDelete: () -> Unit = {},
-    onAddToPlaylist: (() -> Unit)? = null
+    onToggleFavorite: () -> Unit = {},
+    onShare: () -> Unit = {},
+    onAddToPlaylist: () -> Unit = {}
 ) {
+    var showMenu by remember { mutableStateOf(false) }
+
     Card(
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = CardBackground),
@@ -1965,96 +2366,125 @@ fun TrackGridCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .border(1.dp, DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f), RoundedCornerShape(14.dp))
-            .pointerInput(track.id) {
-                detectTapGestures(
-                    onTap = { onClick() },
-                    onLongPress = { onLongClick() }
-                )
-            }
-            .testTag("track_grid_${track.id}")
+            .border(
+                1.dp,
+                if (track.isFavorite) PrimaryGold.copy(alpha = 0.6f) else DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f),
+                RoundedCornerShape(14.dp)
+            )
+            .clickable { onClick() }
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(8.dp)) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(115.dp)
-                    .background(DividerColor.copy(alpha = 0.25f)),
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFF1B1613)),
                 contentAlignment = Alignment.Center
             ) {
-                if (!track.imageUrl.isNullOrBlank()) {
+                if (track.isVideo) {
+                    AnimatedVideoThumbnail(
+                        filePath = track.filePath,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else if (!track.imageUrl.isNullOrBlank()) {
                     AsyncImage(
                         model = track.imageUrl,
-                        contentDescription = track.title,
+                        contentDescription = "Cover",
                         modifier = Modifier.fillMaxSize(),
-                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                    )
-                } else if (track.isVideo) {
-                    Icon(
-                        Icons.Default.Movie,
-                        contentDescription = null,
-                        tint = AccentTeal,
-                        modifier = Modifier.size(40.dp)
+                        contentScale = ContentScale.Crop
                     )
                 } else {
                     Icon(
                         Icons.Default.MusicNote,
                         contentDescription = null,
                         tint = PrimaryGold,
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(36.dp)
                     )
                 }
 
-                // Format badge on top right
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(6.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(Color.Black.copy(alpha = 0.7f))
-                        .padding(horizontal = 5.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = track.format,
-                        fontSize = 9.sp,
-                        color = if (track.isVideo) AccentTeal else PrimaryGold,
-                        fontWeight = FontWeight.ExtraBold
-                    )
+                if (track.isFavorite) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(4.dp)
+                            .size(22.dp)
+                            .background(Color.Black.copy(alpha = 0.6f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Star, contentDescription = "Favorit", tint = PrimaryGold, modifier = Modifier.size(14.dp))
+                    }
                 }
             }
 
-            Column(modifier = Modifier.padding(10.dp)) {
-                Text(
-                    text = track.title,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary,
-                    fontSize = 13.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = if (track.artist.isNotBlank() && track.artist != "<unknown>") track.artist else track.format,
+                        text = track.title,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary,
+                        fontSize = 12.5.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = track.artist,
                         color = UnselectedWhite,
                         fontSize = 10.5.sp,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
+                        overflow = TextOverflow.Ellipsis
                     )
+                }
+
+                Box {
                     IconButton(
-                        onClick = onDelete,
-                        modifier = Modifier.size(24.dp)
+                        onClick = { showMenu = true },
+                        modifier = Modifier.size(28.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.DeleteOutline,
-                            contentDescription = "Hapus",
-                            tint = UnselectedWhite.copy(alpha = 0.7f),
-                            modifier = Modifier.size(16.dp)
+                        Icon(Icons.Default.MoreVert, contentDescription = "Menu Opsi", tint = TextPrimary, modifier = Modifier.size(18.dp))
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false },
+                        modifier = Modifier.background(CardBackground)
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(if (track.isFavorite) "Hapus Favorit" else "Tambah Favorit", color = TextPrimary, fontSize = 13.sp) },
+                            leadingIcon = { Icon(if (track.isFavorite) Icons.Default.Star else Icons.Default.StarOutline, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) },
+                            onClick = {
+                                onToggleFavorite()
+                                showMenu = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Tambah ke Playlist", color = TextPrimary, fontSize = 13.sp) },
+                            leadingIcon = { Icon(Icons.Default.PlaylistAdd, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) },
+                            onClick = {
+                                onAddToPlaylist()
+                                showMenu = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Bagikan File", color = TextPrimary, fontSize = 13.sp) },
+                            leadingIcon = { Icon(Icons.Default.Share, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) },
+                            onClick = {
+                                onShare()
+                                showMenu = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Hapus File", color = Color(0xFFEF5350), fontSize = 13.sp) },
+                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFEF5350), modifier = Modifier.size(18.dp)) },
+                            onClick = {
+                                onDelete()
+                                showMenu = false
+                            }
                         )
                     }
                 }
@@ -2065,13 +2495,17 @@ fun TrackGridCard(
 
 @Composable
 fun TrackItemCard(
-    track: MediaTrack, 
+    track: MediaTrack,
     onClick: () -> Unit,
     onLongClick: () -> Unit = {},
     onDelete: () -> Unit = {},
+    onToggleFavorite: () -> Unit = {},
+    onShare: () -> Unit = {},
     onDownload: () -> Unit = {},
-    onAddToPlaylist: (() -> Unit)? = null
+    onAddToPlaylist: () -> Unit = {}
 ) {
+    var showMenu by remember { mutableStateOf(false) }
+
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = CardBackground),
@@ -2079,44 +2513,49 @@ fun TrackItemCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .border(1.dp, DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f), RoundedCornerShape(12.dp))
-            .pointerInput(track.id) {
-                detectTapGestures(
-                    onTap = { onClick() },
-                    onLongPress = { onLongClick() }
-                )
-            }
-            .testTag("track_card_${track.id}")
+            .border(
+                1.dp,
+                if (track.isFavorite) PrimaryGold.copy(alpha = 0.6f) else DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f),
+                RoundedCornerShape(12.dp)
+            )
+            .clickable { onClick() }
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color.Transparent)
-                .padding(12.dp),
+                .padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(DividerColor.copy(alpha = 0.25f)),
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFF1B1613)),
                 contentAlignment = Alignment.Center
             ) {
-                if (!track.imageUrl.isNullOrBlank()) {
+                if (track.isVideo) {
+                    AnimatedVideoThumbnail(
+                        filePath = track.filePath,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else if (!track.imageUrl.isNullOrBlank()) {
                     AsyncImage(
                         model = track.imageUrl,
-                        contentDescription = track.title,
+                        contentDescription = "Cover",
                         modifier = Modifier.fillMaxSize(),
-                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        contentScale = ContentScale.Crop
                     )
-                } else if (track.isVideo) {
-                    Icon(Icons.Default.Movie, contentDescription = null, tint = AccentTeal)
                 } else {
-                    Icon(Icons.Default.MusicNote, contentDescription = null, tint = PrimaryGold)
+                    Icon(
+                        Icons.Default.MusicNote,
+                        contentDescription = null,
+                        tint = PrimaryGold,
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(10.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2124,59 +2563,257 @@ fun TrackItemCard(
                         text = track.title,
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary,
-                        fontSize = 15.sp,
+                        fontSize = 13.5.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f, fill = false)
                     )
-                    // Lossless tag decoration
-                    if (track.format == "FLAC" || track.format == "WAV") {
+                    if (track.isFavorite) {
                         Spacer(modifier = Modifier.width(4.dp))
-                        Box(
-                            modifier = Modifier
-                                .border(1.dp, PrimaryGold.copy(alpha = 0.7f), RoundedCornerShape(4.dp))
-                                .background(PrimaryGold.copy(alpha = 0.1f))
-                                .padding(horizontal = 4.dp, vertical = 1.dp)
-                        ) {
-                            Text("LOSSLESS", fontSize = 8.sp, color = PrimaryGold, fontWeight = FontWeight.Bold)
-                        }
+                        Icon(Icons.Default.Star, contentDescription = "Favorit", tint = PrimaryGold, modifier = Modifier.size(14.dp))
                     }
                 }
                 Spacer(modifier = Modifier.height(2.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = track.format,
-                        color = AccentTeal,
+                        text = track.artist,
+                        color = UnselectedWhite,
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
-                    if (track.sampleRate.isNotBlank()) {
-                        Text(" • ", color = DividerColor, fontSize = 11.sp)
-                        Text(
-                            text = track.sampleRate,
-                            color = UnselectedWhite,
-                            fontSize = 11.sp
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "• ${formatMs(track.duration)}",
+                        color = PrimaryGold,
+                        fontSize = 10.5.sp
+                    )
+                }
+            }
+
+            Box {
+                IconButton(
+                    onClick = { showMenu = true },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "Menu Opsi", tint = TextPrimary, modifier = Modifier.size(18.dp))
+                }
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false },
+                    modifier = Modifier.background(CardBackground)
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(if (track.isFavorite) "Hapus Favorit" else "Tambah Favorit", color = TextPrimary, fontSize = 13.sp) },
+                        leadingIcon = { Icon(if (track.isFavorite) Icons.Default.Star else Icons.Default.StarOutline, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) },
+                        onClick = {
+                            onToggleFavorite()
+                            showMenu = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Tambah ke Playlist", color = TextPrimary, fontSize = 13.sp) },
+                        leadingIcon = { Icon(Icons.Default.PlaylistAdd, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) },
+                        onClick = {
+                            onAddToPlaylist()
+                            showMenu = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Bagikan File", color = TextPrimary, fontSize = 13.sp) },
+                        leadingIcon = { Icon(Icons.Default.Share, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) },
+                        onClick = {
+                            onShare()
+                            showMenu = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Hapus File", color = Color(0xFFEF5350), fontSize = 13.sp) },
+                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFEF5350), modifier = Modifier.size(18.dp)) },
+                        onClick = {
+                            onDelete()
+                            showMenu = false
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun FolderGridCard(
+    folderName: String,
+    count: Int,
+    isFavorite: Boolean,
+    onClick: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onShare: () -> Unit
+) {
+    var showMenu by remember { mutableStateOf(false) }
+    Card(
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = CardBackground),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .border(1.dp, if (isFavorite) PrimaryGold.copy(alpha = 0.6f) else DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f), RoundedCornerShape(14.dp))
+            .clickable { onClick() }
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(PrimaryGold.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Folder,
+                        contentDescription = null,
+                        tint = PrimaryGold,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+                Box {
+                    IconButton(
+                        onClick = { showMenu = true },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "Menu Folder", tint = TextPrimary, modifier = Modifier.size(18.dp))
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false },
+                        modifier = Modifier.background(CardBackground)
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(if (isFavorite) "Hapus Favorit" else "Favoritkan Folder", color = TextPrimary, fontSize = 13.sp) },
+                            leadingIcon = { Icon(if (isFavorite) Icons.Default.Star else Icons.Default.StarOutline, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) },
+                            onClick = {
+                                onToggleFavorite()
+                                showMenu = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Bagikan Folder", color = TextPrimary, fontSize = 13.sp) },
+                            leadingIcon = { Icon(Icons.Default.Share, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) },
+                            onClick = {
+                                onShare()
+                                showMenu = false
+                            }
                         )
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.width(4.dp))
-
-            // Delete quick icon button
-            IconButton(onClick = onDelete) {
-                Icon(
-                    imageVector = Icons.Default.DeleteOutline,
-                    contentDescription = "Hapus Berkas",
-                    tint = UnselectedWhite.copy(alpha = 0.7f),
-                    modifier = Modifier.size(20.dp)
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = folderName,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary,
+                    fontSize = 13.5.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
+                if (isFavorite) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(Icons.Default.Star, contentDescription = "Favorit", tint = PrimaryGold, modifier = Modifier.size(14.dp))
+                }
             }
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "$count file media",
+                color = UnselectedWhite,
+                fontSize = 11.sp
+            )
+        }
+    }
+}
 
-            // Add to Playlist Button
-            if (onAddToPlaylist != null) {
-                IconButton(onClick = onAddToPlaylist) {
-                    Icon(Icons.Default.PlaylistAdd, contentDescription = "Tambahkan ke Playlist", tint = PrimaryGold)
+@Composable
+fun FolderItemCard(
+    folderName: String,
+    count: Int,
+    isFavorite: Boolean,
+    onClick: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onShare: () -> Unit
+) {
+    var showMenu by remember { mutableStateOf(false) }
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = CardBackground),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .border(1.dp, if (isFavorite) PrimaryGold.copy(alpha = 0.6f) else DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f), RoundedCornerShape(12.dp))
+            .clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(PrimaryGold.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Folder, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(26.dp))
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(folderName, fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    if (isFavorite) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(Icons.Default.Star, contentDescription = "Favorit", tint = PrimaryGold, modifier = Modifier.size(15.dp))
+                    }
+                }
+                Spacer(modifier = Modifier.height(2.dp))
+                Text("$count file media", color = UnselectedWhite, fontSize = 11.sp)
+            }
+            Box {
+                IconButton(
+                    onClick = { showMenu = true },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "Menu Folder", tint = TextPrimary, modifier = Modifier.size(20.dp))
+                }
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false },
+                    modifier = Modifier.background(CardBackground)
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(if (isFavorite) "Hapus Favorit" else "Favoritkan Folder", color = TextPrimary, fontSize = 13.sp) },
+                        leadingIcon = { Icon(if (isFavorite) Icons.Default.Star else Icons.Default.StarOutline, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) },
+                        onClick = {
+                            onToggleFavorite()
+                            showMenu = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Bagikan Folder", color = TextPrimary, fontSize = 13.sp) },
+                        leadingIcon = { Icon(Icons.Default.Share, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) },
+                        onClick = {
+                            onShare()
+                            showMenu = false
+                        }
+                    )
                 }
             }
         }
@@ -2187,6 +2824,10 @@ fun TrackItemCard(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
+    LaunchedEffect(Unit) {
+        viewModel.playFirstAudioTrackIfNeeded()
+    }
+
     val currentTrack by viewModel.currentTrack.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
     val playbackProgress by viewModel.playbackProgress.collectAsStateWithLifecycle()
@@ -2217,6 +2858,10 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
     var activeTab by remember { mutableStateOf("Karaoke") }
     var spectrumModel by remember { mutableStateOf("Wave") }
     var spectrumColor by remember { mutableStateOf("Teal") }
+
+    // Photo label mode: Transparan (default), Putih, Hitam
+    var photoLabelMode by remember { mutableStateOf("Transparan") }
+    var showPhotoLabelMenu by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
 
@@ -2403,7 +3048,7 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(horizontal = 14.dp, vertical = 4.dp)
                     .pointerInput(Unit) {
                         detectHorizontalDragGestures { _, dragAmount ->
                             if (dragAmount < -35) {
@@ -2414,14 +3059,141 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
+                // Sound Spectrum Visualizer - Full Height Near Header, Transparent No Background
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(130.dp)
+                        .padding(top = 2.dp)
+                ) {
+                    WaveVisualizer(
+                        isPlaying = isPlaying, 
+                        model = spectrumModel, 
+                        colorTheme = spectrumColor,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
+                // Center Artwork Box with Clickable Photo Label
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(175.dp)
+                            .shadow(12.dp, RoundedCornerShape(20.dp), ambientColor = PrimaryGold.copy(alpha = 0.25f), spotColor = PrimaryGold.copy(alpha = 0.2f))
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(
+                                when (photoLabelMode) {
+                                    "Putih" -> Color.White.copy(alpha = 0.85f)
+                                    "Hitam" -> Color.Black.copy(alpha = 0.85f)
+                                    else -> Color.Transparent
+                                }
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (!track.imageUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = track.imageUrl,
+                                contentDescription = "Cover Album Dinamis",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                            )
+                        } else if (track.isVideo) {
+                            Icon(
+                                imageVector = Icons.Default.Movie,
+                                contentDescription = "Video Cover",
+                                tint = PrimaryGold,
+                                modifier = Modifier.size(56.dp)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.MusicNote,
+                                contentDescription = "Music Cover",
+                                tint = PrimaryGold,
+                                modifier = Modifier.size(56.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Clickable Photo Label with 3 transparency choices (Transparan, Putih, Hitam)
+                    Box {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = when (photoLabelMode) {
+                                "Putih" -> Color.White
+                                "Hitam" -> Color.Black
+                                else -> DividerColor.copy(alpha = 0.2f)
+                            },
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .border(1.dp, PrimaryGold.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                                .clickable { showPhotoLabelMenu = true }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.Palette,
+                                    contentDescription = null,
+                                    tint = if (photoLabelMode == "Putih") Color.Black else PrimaryGold,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Label: $photoLabelMode",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (photoLabelMode == "Putih") Color.Black else TextPrimary
+                                )
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = showPhotoLabelMenu,
+                            onDismissRequest = { showPhotoLabelMenu = false },
+                            modifier = Modifier.background(CardBackground)
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Transparan (Default)", color = TextPrimary, fontSize = 13.sp, fontWeight = if (photoLabelMode == "Transparan") FontWeight.Bold else FontWeight.Normal) },
+                                onClick = {
+                                    photoLabelMode = "Transparan"
+                                    showPhotoLabelMenu = false
+                                },
+                                leadingIcon = { Icon(Icons.Default.Layers, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Putih", color = TextPrimary, fontSize = 13.sp, fontWeight = if (photoLabelMode == "Putih") FontWeight.Bold else FontWeight.Normal) },
+                                onClick = {
+                                    photoLabelMode = "Putih"
+                                    showPhotoLabelMenu = false
+                                },
+                                leadingIcon = { Icon(Icons.Default.BrightnessHigh, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Hitam", color = TextPrimary, fontSize = 13.sp, fontWeight = if (photoLabelMode == "Hitam") FontWeight.Bold else FontWeight.Normal) },
+                                onClick = {
+                                    photoLabelMode = "Hitam"
+                                    showPhotoLabelMenu = false
+                                },
+                                leadingIcon = { Icon(Icons.Default.Brightness2, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(18.dp)) }
+                            )
+                        }
+                    }
+                }
+
                 // Title and Artist header
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(top = 4.dp)
+                    modifier = Modifier.padding(bottom = 4.dp)
                 ) {
                     Text(
                         text = track.title,
-                        fontSize = 18.sp,
+                        fontSize = 17.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = TextPrimary,
                         textAlign = TextAlign.Center,
@@ -2439,81 +3211,24 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                         modifier = Modifier.padding(top = 2.dp)
                     )
                 }
-
-                // Center Artwork Box
-                Box(
-                    modifier = Modifier
-                        .size(190.dp)
-                        .shadow(16.dp, RoundedCornerShape(24.dp), ambientColor = PrimaryGold.copy(alpha = 0.3f), spotColor = PrimaryGold.copy(alpha = 0.2f))
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(Color(0xFF2E241E), Color(0xFF140F0D))
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (!track.imageUrl.isNullOrBlank()) {
-                        AsyncImage(
-                            model = track.imageUrl,
-                            contentDescription = "Cover Album Dinamis",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                        )
-                    } else if (track.isVideo) {
-                        Icon(
-                            imageVector = Icons.Default.Movie,
-                            contentDescription = "Video Cover",
-                            tint = PrimaryGold,
-                            modifier = Modifier.size(56.dp)
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.MusicNote,
-                            contentDescription = "Music Cover",
-                            tint = PrimaryGold,
-                            modifier = Modifier.size(56.dp)
-                        )
-                    }
-                }
-
-                // Sound Spectrum Visualizer (Spanning full width matching main control card)
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = if (IsDarkTheme) Color(0xFF171310).copy(alpha = (1f - bgTransparency * 0.5f).coerceIn(0.35f, 0.9f)) else Color(0xFFFFFBF7).copy(alpha = (1f - bgTransparency * 0.5f).coerceIn(0.35f, 0.9f))),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(90.dp)
-                        .border(1.dp, DividerColor.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
-                ) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        WaveVisualizer(
-                            isPlaying = isPlaying, 
-                            model = spectrumModel, 
-                            colorTheme = spectrumColor,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                }
             }
 
-            // ================== SECTION 3: FIXED BOTTOM CONTROLLER CONSOLE (Distinct Audio Theme) ==================
+            // ================== SECTION 3: FIXED BOTTOM CONTROLLER CONSOLE (Matching Video Main Control Dimensions) ==================
             Card(
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (IsDarkTheme) Color(0xFF221711).copy(alpha = (1f - bgTransparency * 0.45f).coerceIn(0.45f, 1f))
-                    else Color(0xFFFFF6EE).copy(alpha = (1f - bgTransparency * 0.45f).coerceIn(0.45f, 1f))
+                    containerColor = CardBackground
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .border(1.dp, PrimaryGold.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
+                    .padding(horizontal = 10.dp, vertical = 8.dp)
+                    .border(1.dp, DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f), RoundedCornerShape(20.dp))
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     // Thinner seekbar slider progress with Circular thumb
@@ -3603,10 +4318,10 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
         }
     }
 
-    // Auto-hide controls after 3 seconds of inactivity while playing
+    // Auto-hide controls after 5 seconds of inactivity while playing
     LaunchedEffect(areControlsVisible, interactionTick, isVideoPlaying) {
         if (areControlsVisible && isVideoPlaying) {
-            delay(3000)
+            delay(5000)
             areControlsVisible = false
         }
     }
@@ -3828,7 +4543,11 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
             ) {
-                areControlsVisible = !areControlsVisible
+                if (showHeaderVolumeSlider) {
+                    showHeaderVolumeSlider = false
+                } else {
+                    areControlsVisible = !areControlsVisible
+                }
                 interactionTick++
             }
     ) {
@@ -3899,25 +4618,24 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                 modifier = Modifier.fillMaxSize()
             ) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(10.dp)
+                    modifier = Modifier.fillMaxSize()
                 ) {
                     // Top Bar: Row 1 (File Name Bar), Row 2 (Quick Actions Bar: Volume, Acak, Rotasi, Kecepatan, Kunci), Row 3 (Expandable Volume Slider)
+                    // Zero padding/margins so it's always flush and visible at the top (only hidden in fullscreen)
                     Column(
                         modifier = Modifier
                             .align(Alignment.TopCenter)
                             .fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                        verticalArrangement = Arrangement.spacedBy(0.dp)
                     ) {
-                        // ROW 1: Bar Nama File & Menu
-                        Card(
-                            shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(containerColor = CardBackground),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        // ROW 1: Bar Nama File & Menu (Flush edge-to-edge top header)
+                        Surface(
+                            color = HeaderBackground,
+                            tonalElevation = 2.dp,
+                            shadowElevation = 1.dp,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .border(1.dp, DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f), RoundedCornerShape(14.dp))
+                                .border(0.5.dp, DividerColor.copy(alpha = 0.35f))
                         ) {
                             Row(
                                 modifier = Modifier
@@ -3991,14 +4709,12 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                             }
                         }
 
-                        // ROW 2: Bar Baru di Bawah Nama File (Volume, Acak, Rotasi, Kecepatan, Kunci - Seragam tanpa border berlebih)
-                        Card(
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = CardBackground),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        // ROW 2: Bar Baru di Bawah Nama File (Volume, Acak, Rotasi, Kecepatan, Kunci - Flush bar)
+                        Surface(
+                            color = CardBackground,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .border(1.dp, DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f), RoundedCornerShape(12.dp))
+                                .border(0.5.dp, DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f))
                         ) {
                             Row(
                                 modifier = Modifier
@@ -4022,7 +4738,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                     Icon(
                                         imageVector = if (videoVolume == 0f) Icons.Default.VolumeOff else if (videoVolume < 0.5f) Icons.Default.VolumeDown else Icons.Default.VolumeUp,
                                         contentDescription = "Pengaturan Volume",
-                                        tint = if (showHeaderVolumeSlider) AccentTeal else TextPrimary,
+                                        tint = if (showHeaderVolumeSlider) PrimaryGold else TextPrimary,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -4040,7 +4756,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                     Icon(
                                         imageVector = Icons.Default.Shuffle,
                                         contentDescription = "Acak Video",
-                                        tint = if (isVideoShuffle) AccentTeal else TextPrimary,
+                                        tint = if (isVideoShuffle) PrimaryGold else TextPrimary,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -4066,7 +4782,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                     Icon(
                                         imageVector = if (viewModel.isVideoAutoRotate) Icons.Default.ScreenRotation else Icons.Default.ScreenLockRotation,
                                         contentDescription = "Rotasi Otomatis",
-                                        tint = if (viewModel.isVideoAutoRotate) AccentTeal else TextPrimary,
+                                        tint = if (viewModel.isVideoAutoRotate) PrimaryGold else TextPrimary,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -4082,7 +4798,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                     Icon(
                                         imageVector = Icons.Default.Speed,
                                         contentDescription = "Kecepatan Video",
-                                        tint = if (videoPlaybackSpeed != 1.0f) AccentTeal else TextPrimary,
+                                        tint = if (videoPlaybackSpeed != 1.0f) PrimaryGold else TextPrimary,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -4105,25 +4821,23 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                             }
                         }
 
-                        // ROW 3: Expandable Header Volume Slider Row
+                        // ROW 3: Expandable Header Volume Slider (Circular Thumb & Thin 3dp Track)
                         AnimatedVisibility(
                             visible = showHeaderVolumeSlider,
                             enter = expandVertically() + fadeIn(),
                             exit = shrinkVertically() + fadeOut()
                         ) {
-                            Card(
-                                shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = CardBackground),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                            Surface(
+                                color = CardBackground,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .border(1.dp, AccentTeal.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+                                    .border(0.5.dp, PrimaryGold.copy(alpha = 0.45f))
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                                        .padding(horizontal = 14.dp, vertical = 6.dp)
                                         .clickable(
                                             interactionSource = remember { MutableInteractionSource() },
                                             indication = null
@@ -4143,11 +4857,11 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                         Icon(
                                             imageVector = if (videoVolume == 0f) Icons.Default.VolumeMute else Icons.Default.VolumeUp,
                                             contentDescription = "Mute/Unmute",
-                                            tint = AccentTeal,
+                                            tint = PrimaryGold,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }
-                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
                                     Slider(
                                         value = videoVolume,
                                         onValueChange = {
@@ -4156,13 +4870,31 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                         },
                                         valueRange = 0f..1f,
                                         colors = SliderDefaults.colors(
-                                            activeTrackColor = AccentTeal,
-                                            inactiveTrackColor = DividerColor,
-                                            thumbColor = AccentTeal
+                                            activeTrackColor = PrimaryGold,
+                                            inactiveTrackColor = DividerColor.copy(alpha = 0.5f),
+                                            thumbColor = PrimaryGold
                                         ),
+                                        thumb = {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(12.dp)
+                                                    .background(PrimaryGold, CircleShape)
+                                                    .border(1.5.dp, if (IsDarkTheme) Color.White else Color(0xFF101014), CircleShape)
+                                            )
+                                        },
+                                        track = { sliderState ->
+                                            SliderDefaults.Track(
+                                                sliderState = sliderState,
+                                                modifier = Modifier.height(3.dp),
+                                                colors = SliderDefaults.colors(
+                                                    activeTrackColor = PrimaryGold,
+                                                    inactiveTrackColor = DividerColor.copy(alpha = 0.5f)
+                                                )
+                                            )
+                                        },
                                         modifier = Modifier.weight(1f)
                                     )
-                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         "${(videoVolume * 100).toInt()}%",
                                         color = TextPrimary,
@@ -4182,6 +4914,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
+                            .padding(horizontal = 10.dp, vertical = 8.dp)
                             .border(1.dp, DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f), RoundedCornerShape(20.dp))
                     ) {
                         Column(

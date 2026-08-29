@@ -6,10 +6,10 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface MediaDao {
     // Track queries
-    @Query("SELECT * FROM media_tracks ORDER BY dateAdded DESC")
+    @Query("SELECT * FROM media_tracks ORDER BY isFavorite DESC, dateAdded DESC")
     fun getAllTracksFlow(): Flow<List<MediaTrack>>
 
-    @Query("SELECT * FROM media_tracks ORDER BY dateAdded DESC")
+    @Query("SELECT * FROM media_tracks ORDER BY isFavorite DESC, dateAdded DESC")
     suspend fun getAllTracksList(): List<MediaTrack>
 
     @Query("SELECT COUNT(*) FROM media_tracks")

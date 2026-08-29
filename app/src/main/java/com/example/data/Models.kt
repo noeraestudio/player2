@@ -20,6 +20,7 @@ data class MediaTrack(
     val isDownloaded: Boolean = false,
     val sourceUrl: String? = null, // Original URL if downloaded offline
     var imageUrl: String? = null, // Custom image/artwork URL or path
+    var isFavorite: Boolean = false, // Starred favorite track
     val dateAdded: Long = System.currentTimeMillis()
 )
 

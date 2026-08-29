@@ -46,7 +46,32 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
 
     // UI Navigation State
     var activeScreen by mutableStateOf("Library")
-    var selectedMediaTab by mutableStateOf("Semua") // Semua, Audio, Video, Lossless
+    var selectedMediaTab by mutableStateOf("Folder") // Folder, Audio, Video
+
+    // Favorite Folders State
+    private val _favoriteFolders = MutableStateFlow<Set<String>>(emptySet())
+    val favoriteFolders: StateFlow<Set<String>> = _favoriteFolders.asStateFlow()
+
+    fun toggleFavoriteFolder(folderName: String) {
+        val current = _favoriteFolders.value.toMutableSet()
+        if (current.contains(folderName)) {
+            current.remove(folderName)
+        } else {
+            current.add(folderName)
+        }
+        _favoriteFolders.value = current
+    }
+
+    fun isFolderFavorite(folderName: String): Boolean {
+        return _favoriteFolders.value.contains(folderName)
+    }
+
+    fun toggleFavoriteTrack(track: MediaTrack) {
+        val updated = track.copy(isFavorite = !track.isFavorite)
+        viewModelScope.launch {
+            repository.updateTrack(updated)
+        }
+    }
 
     // Theme Management State (Light/Dark Mode, Presets, Custom Accent, Icon & Text Colors)
     private val _isDarkMode = MutableStateFlow(false)
@@ -199,11 +224,11 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
     private val _selectedPresetName = MutableStateFlow("Normal")
     val selectedPresetName: StateFlow<String> = _selectedPresetName.asStateFlow()
 
-    // Audio DSP Effects State (Reverb, Pitch, Super Bass, 3D Audio, L-R Audio Balance)
+    // Audio DSP Effects State (Reverb, Pitch, Super Bass, 3D Audio, L-R Audio Balance, Vocal, Treble, Tube, Leveler)
     private val _isEffectsEnabled = MutableStateFlow(false)
     val isEffectsEnabled: StateFlow<Boolean> = _isEffectsEnabled.asStateFlow()
 
-    private val _reverbPreset = MutableStateFlow("Sedang") // Mati, Kecil, Sedang, Aula, Plate
+    private val _reverbPreset = MutableStateFlow("Sedang") // Mati, Kecil, Sedang, Aula, Plate, Katedral, Stadion
     val reverbPreset: StateFlow<String> = _reverbPreset.asStateFlow()
 
     private val _pitchSemiTones = MutableStateFlow(0f) // -6f to +6f semitones
@@ -217,6 +242,47 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _lrAudioBalance = MutableStateFlow(0.0f) // -1.0f (Full Left) to +1.0f (Full Right), 0.0f Center
     val lrAudioBalance: StateFlow<Float> = _lrAudioBalance.asStateFlow()
+
+    // Enhanced DSP Quality Enhancers
+    private val _vocalClarity = MutableStateFlow(0.4f) // 0.0f to 1.0f
+    val vocalClarity: StateFlow<Float> = _vocalClarity.asStateFlow()
+
+    private val _trebleSparkle = MutableStateFlow(0.35f) // 0.0f to 1.0f
+    val trebleSparkle: StateFlow<Float> = _trebleSparkle.asStateFlow()
+
+    private val _warmTubeSaturation = MutableStateFlow(0.3f) // 0.0f to 1.0f
+    val warmTubeSaturation: StateFlow<Float> = _warmTubeSaturation.asStateFlow()
+
+    private val _dynamicVolumeLeveler = MutableStateFlow(false)
+    val dynamicVolumeLeveler: StateFlow<Boolean> = _dynamicVolumeLeveler.asStateFlow()
+
+    fun setVocalClarity(strength: Float) {
+        _vocalClarity.value = strength.coerceIn(0f, 1f)
+    }
+
+    fun setTrebleSparkle(strength: Float) {
+        _trebleSparkle.value = strength.coerceIn(0f, 1f)
+    }
+
+    fun setWarmTubeSaturation(strength: Float) {
+        _warmTubeSaturation.value = strength.coerceIn(0f, 1f)
+    }
+
+    fun toggleDynamicVolumeLeveler() {
+        _dynamicVolumeLeveler.value = !_dynamicVolumeLeveler.value
+    }
+
+    fun setDynamicVolumeLeveler(enabled: Boolean) {
+        _dynamicVolumeLeveler.value = enabled
+    }
+
+    // Background Style / Layout Atmosphere (Acrylic Glass, Dark Studio Carbon, Vibrant Radial Glow, Gradient Mist)
+    private val _backgroundStyle = MutableStateFlow("Acrylic Glass")
+    val backgroundStyle: StateFlow<String> = _backgroundStyle.asStateFlow()
+
+    fun setBackgroundStyle(style: String) {
+        _backgroundStyle.value = style
+    }
 
     // AB Repeat State
     private val _abRepeatActive = MutableStateFlow(false)
@@ -393,6 +459,15 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
             repository.seedDemoDatabase()
             // Make sure Equalizer settings match initial state
             applyPreset("Normal")
+        }
+    }
+
+    fun playFirstAudioTrackIfNeeded() {
+        if (_currentTrack.value == null) {
+            val firstAudio = allTracks.value.firstOrNull { !it.isVideo }
+            if (firstAudio != null) {
+                playTrack(firstAudio)
+            }
         }
     }
 
