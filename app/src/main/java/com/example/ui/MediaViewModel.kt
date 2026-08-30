@@ -129,15 +129,52 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
         _customSecondaryColor.value = null
         _customTextColor.value = null
         _customIconColor.value = null
-        _backgroundTransparency.value = 1.0f
+        _backgroundTransparency.value = 0.0f
+        _backgroundStyle.value = "Solid Minimal"
     }
 
-    // Background Transparency Setting (0f = opaque solid, 1f = fully transparent glass, default 100% / 1.0f)
-    private val _backgroundTransparency = MutableStateFlow(1.0f)
+    // Background Transparency Setting (0f = opaque solid, 1f = fully transparent glass, default 0f Solid)
+    private val _backgroundTransparency = MutableStateFlow(0.0f)
     val backgroundTransparency: StateFlow<Float> = _backgroundTransparency.asStateFlow()
 
     fun setBackgroundTransparency(transparency: Float) {
         _backgroundTransparency.value = transparency.coerceIn(0f, 1f)
+    }
+
+    // Border Card on/off feature
+    private val _showFileBorders = MutableStateFlow(true)
+    val showFileBorders: StateFlow<Boolean> = _showFileBorders.asStateFlow()
+
+    fun setShowFileBorders(enabled: Boolean) {
+        _showFileBorders.value = enabled
+    }
+
+    fun toggleShowFileBorders() {
+        _showFileBorders.value = !_showFileBorders.value
+    }
+
+    // Nav Light Animation on/off feature
+    private val _showNavLightAnim = MutableStateFlow(true)
+    val showNavLightAnim: StateFlow<Boolean> = _showNavLightAnim.asStateFlow()
+
+    fun setShowNavLightAnim(enabled: Boolean) {
+        _showNavLightAnim.value = enabled
+    }
+
+    fun toggleShowNavLightAnim() {
+        _showNavLightAnim.value = !_showNavLightAnim.value
+    }
+
+    // Text Title Uppercase on/off feature
+    private val _isTextTitleUppercase = MutableStateFlow(true)
+    val isTextTitleUppercase: StateFlow<Boolean> = _isTextTitleUppercase.asStateFlow()
+
+    fun setTextTitleUppercase(enabled: Boolean) {
+        _isTextTitleUppercase.value = enabled
+    }
+
+    fun toggleTextTitleUppercase() {
+        _isTextTitleUppercase.value = !_isTextTitleUppercase.value
     }
 
     // Sleep Timer State
@@ -277,15 +314,15 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // Background Style / Layout Atmosphere (Standard, Gradasi Sunset, Gradasi Aurora, Gradasi Cyber, Classic Modern, Solid Minimal, Animasi Cahaya, Neon Glow, Mica Frosted)
-    private val _backgroundStyle = MutableStateFlow("Standard")
+    private val _backgroundStyle = MutableStateFlow("Solid Minimal")
     val backgroundStyle: StateFlow<String> = _backgroundStyle.asStateFlow()
 
     fun setBackgroundStyle(style: String) {
         _backgroundStyle.value = style
     }
 
-    // Audio Label Presentation Style: "transparan" (default), "solid" (clean white/solid card), "sembunyi" (hidden label for full spectrum showcase)
-    private val _audioLabelStyle = MutableStateFlow("transparan")
+    // Audio Label Presentation Style: "solid" (clean white/solid card, default), "transparan", "sembunyi"
+    private val _audioLabelStyle = MutableStateFlow("solid")
     val audioLabelStyle: StateFlow<String> = _audioLabelStyle.asStateFlow()
 
     fun setAudioLabelStyle(style: String) {
@@ -335,7 +372,7 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
         return nextMode
     }
 
-    // AB Repeat State
+    // AB Repeat State (Audio)
     private val _abRepeatActive = MutableStateFlow(false)
     val abRepeatActive: StateFlow<Boolean> = _abRepeatActive.asStateFlow()
 
@@ -344,6 +381,38 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _pointB = MutableStateFlow<Long?>(null)
     val pointB: StateFlow<Long?> = _pointB.asStateFlow()
+
+    // AB Repeat State (Video)
+    private val _videoAbRepeatActive = MutableStateFlow(false)
+    val videoAbRepeatActive: StateFlow<Boolean> = _videoAbRepeatActive.asStateFlow()
+
+    private val _videoPointA = MutableStateFlow<Long?>(null)
+    val videoPointA: StateFlow<Long?> = _videoPointA.asStateFlow()
+
+    private val _videoPointB = MutableStateFlow<Long?>(null)
+    val videoPointB: StateFlow<Long?> = _videoPointB.asStateFlow()
+
+    fun setVideoPointA() {
+        _videoPointA.value = _videoProgress.value
+        if (_videoPointB.value != null && _videoPointA.value!! >= _videoPointB.value!!) {
+            _videoPointB.value = null
+        }
+    }
+
+    fun setVideoPointB() {
+        val current = _videoProgress.value
+        val aVal = _videoPointA.value
+        if (aVal != null && current > aVal) {
+            _videoPointB.value = current
+            _videoAbRepeatActive.value = true
+        }
+    }
+
+    fun clearVideoAbRepeat() {
+        _videoPointA.value = null
+        _videoPointB.value = null
+        _videoAbRepeatActive.value = false
+    }
 
     // Shuffle state
     private val _isShuffle = MutableStateFlow(false)
@@ -464,9 +533,16 @@ class MediaViewModel(application: Application) : AndroidViewModel(application) {
                 videoMediaPlayer?.let { mp ->
                     try {
                         if (mp.isPlaying) {
-                            _videoProgress.value = mp.currentPosition.toLong()
+                            val cur = mp.currentPosition.toLong()
+                            _videoProgress.value = cur
                             if (mp.duration > 0) {
                                 _videoDuration.value = mp.duration.toLong()
+                            }
+                            if (_videoAbRepeatActive.value && _videoPointA.value != null && _videoPointB.value != null) {
+                                if (cur >= _videoPointB.value!!) {
+                                    mp.seekTo(_videoPointA.value!!.toInt())
+                                    _videoProgress.value = _videoPointA.value!!
+                                }
                             }
                         }
                     } catch (e: Exception) {

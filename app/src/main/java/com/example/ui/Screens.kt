@@ -38,6 +38,10 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.window.Dialog
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -325,6 +329,9 @@ fun HarmoniMainScreen(viewModel: MediaViewModel) {
     val customSecondaryColor by viewModel.customSecondaryColor.collectAsStateWithLifecycle()
     val bgTransparency by viewModel.backgroundTransparency.collectAsStateWithLifecycle()
     val backgroundStyle by viewModel.backgroundStyle.collectAsStateWithLifecycle()
+    val showFileBorders by viewModel.showFileBorders.collectAsStateWithLifecycle()
+    val showNavLightAnim by viewModel.showNavLightAnim.collectAsStateWithLifecycle()
+    val isTextTitleUppercase by viewModel.isTextTitleUppercase.collectAsStateWithLifecycle()
 
     val currentTrack by viewModel.currentTrack.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
@@ -649,6 +656,26 @@ fun HarmoniMainScreen(viewModel: MediaViewModel) {
                                         .windowInsetsPadding(WindowInsets.navigationBars)
                                         .padding(vertical = 4.dp)
                                 ) {
+                                    if (showNavLightAnim) {
+                                        val lightOffset = (sin(lightAnimPhase) + 1f) / 2f
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(2.dp)
+                                                .align(Alignment.TopCenter)
+                                                .background(
+                                                    Brush.horizontalGradient(
+                                                        colors = listOf(
+                                                            Color.Transparent,
+                                                            PrimaryGold.copy(alpha = 0.85f),
+                                                            Color.Transparent
+                                                        ),
+                                                        startX = (lightOffset * 1000f) - 300f,
+                                                        endX = (lightOffset * 1000f) + 300f
+                                                    )
+                                                )
+                                        )
+                                    }
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceEvenly,
@@ -929,6 +956,9 @@ fun StudioDrawerContent(
     val selectedThemeId by viewModel.selectedThemeId.collectAsStateWithLifecycle()
     val bgTransparency by viewModel.backgroundTransparency.collectAsStateWithLifecycle()
     val backgroundStyle by viewModel.backgroundStyle.collectAsStateWithLifecycle()
+    val showFileBorders by viewModel.showFileBorders.collectAsStateWithLifecycle()
+    val showNavLightAnim by viewModel.showNavLightAnim.collectAsStateWithLifecycle()
+    val isTextTitleUppercase by viewModel.isTextTitleUppercase.collectAsStateWithLifecycle()
 
     val isEffectsEnabled by viewModel.isEffectsEnabled.collectAsStateWithLifecycle()
     val reverbPreset by viewModel.reverbPreset.collectAsStateWithLifecycle()
@@ -1225,6 +1255,83 @@ fun StudioDrawerContent(
                                     )
                                 }
                             }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+                        HorizontalDivider(color = DividerColor.copy(alpha = 0.35f), thickness = 0.8.dp)
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Switch 1: Garis Batas Berkas (Border Card)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Garis Batas Berkas", fontSize = 12.sp, color = TextPrimary, fontWeight = FontWeight.SemiBold)
+                                Text("Tampilkan border outline pada kartu media", fontSize = 10.sp, color = UnselectedWhite)
+                            }
+                            Switch(
+                                checked = showFileBorders,
+                                onCheckedChange = { viewModel.toggleShowFileBorders() },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = PrimaryGold,
+                                    checkedTrackColor = PrimaryGold.copy(alpha = 0.4f),
+                                    uncheckedThumbColor = UnselectedWhite,
+                                    uncheckedTrackColor = DividerColor.copy(alpha = 0.4f)
+                                ),
+                                modifier = Modifier.scale(0.85f)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Switch 2: Gaya Teks Judul (Uppercase / Normal)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Format Teks Judul", fontSize = 12.sp, color = TextPrimary, fontWeight = FontWeight.SemiBold)
+                                Text("Ubah judul menjadi huruf besar (UPPERCASE)", fontSize = 10.sp, color = UnselectedWhite)
+                            }
+                            Switch(
+                                checked = isTextTitleUppercase,
+                                onCheckedChange = { viewModel.toggleTextTitleUppercase() },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = PrimaryGold,
+                                    checkedTrackColor = PrimaryGold.copy(alpha = 0.4f),
+                                    uncheckedThumbColor = UnselectedWhite,
+                                    uncheckedTrackColor = DividerColor.copy(alpha = 0.4f)
+                                ),
+                                modifier = Modifier.scale(0.85f)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Switch 3: Animasi Cahaya Navigasi (Luminous Nav Animation)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Animasi Cahaya Navigasi", fontSize = 12.sp, color = TextPrimary, fontWeight = FontWeight.SemiBold)
+                                Text("Efek gelombang cahaya pada bilah navigasi", fontSize = 10.sp, color = UnselectedWhite)
+                            }
+                            Switch(
+                                checked = showNavLightAnim,
+                                onCheckedChange = { viewModel.toggleShowNavLightAnim() },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = PrimaryGold,
+                                    checkedTrackColor = PrimaryGold.copy(alpha = 0.4f),
+                                    uncheckedThumbColor = UnselectedWhite,
+                                    uncheckedTrackColor = DividerColor.copy(alpha = 0.4f)
+                                ),
+                                modifier = Modifier.scale(0.85f)
+                            )
                         }
                     }
                 }
@@ -1969,7 +2076,7 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
         }
     }
 
-    var isGridView by remember { mutableStateOf(false) }
+    var isGridView by remember { mutableStateOf(true) }
     var selectedFolder by remember { mutableStateOf<String?>(null) }
 
     val folderGroupedTracks = remember(tracks) {
@@ -1985,9 +2092,22 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
         }
     }
 
-    // Sorted folder keys with favorites pinned to the top
-    val sortedFolderNames = remember(folderGroupedTracks, favoriteFolders) {
-        folderGroupedTracks.keys.sortedWith(
+    // Sorted folder keys with favorites pinned to the top and filtered by searchQuery
+    val sortedFolderNames = remember(folderGroupedTracks, favoriteFolders, searchQuery) {
+        val keys = if (searchQuery.isBlank()) {
+            folderGroupedTracks.keys
+        } else {
+            folderGroupedTracks.keys.filter { folderName ->
+                folderName.contains(searchQuery, ignoreCase = true) ||
+                (folderGroupedTracks[folderName]?.any { track ->
+                    track.title.contains(searchQuery, ignoreCase = true) ||
+                    track.artist.contains(searchQuery, ignoreCase = true) ||
+                    track.album.contains(searchQuery, ignoreCase = true) ||
+                    track.genre.contains(searchQuery, ignoreCase = true)
+                } == true)
+            }
+        }
+        keys.sortedWith(
             compareByDescending<String> { favoriteFolders.contains(it) }.thenBy { it.lowercase() }
         )
     }
@@ -2036,11 +2156,14 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .border(0.5.dp, DividerColor.copy(alpha = 0.35f))
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     IconButton(
                         onClick = onOpenDrawer,
                         modifier = Modifier.size(38.dp)
@@ -2053,18 +2176,24 @@ fun LibraryScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                         )
                     }
                     Spacer(modifier = Modifier.width(10.dp))
-                    Column {
+                    Column(
+                        verticalArrangement = Arrangement.Center
+                    ) {
                         Text(
                             text = "NOERAE PLAYER",
                             fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
+                            fontSize = 15.sp,
                             color = PrimaryGold,
-                            letterSpacing = 0.5.sp
+                            letterSpacing = 0.5.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = if (selectedFolder != null) "Folder: $selectedFolder" else "Pustaka Media • ${tracks.size} item",
                             fontSize = 11.sp,
-                            color = UnselectedWhite
+                            color = UnselectedWhite,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -3151,57 +3280,59 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .border(0.5.dp, DividerColor.copy(alpha = 0.35f))
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(
-                            onClick = onOpenDrawer,
-                            modifier = Modifier.size(38.dp)
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Menu, contentDescription = "Menu Pengaturan", tint = PrimaryGold, modifier = Modifier.size(22.dp))
-                        }
-
-                        // Music Title in Header (Centered & Elegant)
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(horizontal = 8.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = track.title,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 13.5.sp,
-                                color = TextPrimary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                textAlign = TextAlign.Center
-                            )
-                            Text(
-                                text = if (track.artist.isNotBlank() && track.artist != "<unknown>") track.artist else "Audio • ${track.format.uppercase()}",
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 10.5.sp,
-                                color = PrimaryGold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                textAlign = TextAlign.Center
-                            )
+                            IconButton(
+                                onClick = onOpenDrawer,
+                                modifier = Modifier.size(38.dp)
+                            ) {
+                                Icon(Icons.Default.Menu, contentDescription = "Menu Slider", tint = PrimaryGold, modifier = Modifier.size(24.dp))
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column(
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = track.title,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    color = TextPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = if (track.artist.isNotBlank() && track.artist != "<unknown>") track.artist else "Audio • ${track.format.uppercase()}",
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 11.sp,
+                                    color = PrimaryGold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             IconButton(
-                                onClick = { viewModel.activeScreen = "Library" },
+                                onClick = {
+                                    viewModel.selectedMediaTab = "Audio"
+                                    viewModel.activeScreen = "Library"
+                                },
                                 modifier = Modifier.size(38.dp)
                             ) {
-                                Icon(Icons.Default.QueueMusic, contentDescription = "Daftar Lagu", tint = TextPrimary, modifier = Modifier.size(22.dp))
+                                Icon(Icons.Default.QueueMusic, contentDescription = "Daftar Lagu", tint = PrimaryGold, modifier = Modifier.size(22.dp))
                             }
                             Box {
                                 IconButton(
                                     onClick = { showMenuDropdown = true },
                                     modifier = Modifier.size(38.dp)
                                 ) {
-                                    Icon(Icons.Default.MoreVert, contentDescription = "Pilihan Menu", tint = TextPrimary, modifier = Modifier.size(22.dp))
+                                    Icon(Icons.Default.MoreVert, contentDescription = "Pilihan Menu", tint = PrimaryGold, modifier = Modifier.size(22.dp))
                                 }
                                 DropdownMenu(
                                     expanded = showMenuDropdown,
@@ -3338,29 +3469,36 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                 }
             }
 
-            // ================== SECTION 3: FIXED BOTTOM CONTROLLER CONSOLE (Matching Video Main Control Dimensions) ==================
-            Card(
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = CardBackground
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            // ================== SECTION 3: FIXED BOTTOM CONTROLLER CONSOLE ==================
+            Surface(
+                shape = RectangleShape,
+                color = CardBackground,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 10.dp, vertical = 8.dp)
-                    .border(1.dp, DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f), RoundedCornerShape(20.dp))
+                    .border(0.5.dp, DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f))
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Thinner seekbar slider progress with Circular thumb
                     val currentDur = duration.coerceAtLeast(1L)
                     val currentProg = playbackProgress.coerceIn(0L, currentDur)
 
-                    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp)) {
+                    // Detik waktu dan total waktu sejajar kanan dan kiri Progress Bar
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = formatMs(currentProg),
+                            color = TextPrimary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.width(42.dp),
+                            textAlign = TextAlign.Center
+                        )
                         Slider(
                             value = currentProg.toFloat(),
                             onValueChange = { viewModel.seekTo(it.toLong()) },
@@ -3388,55 +3526,50 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                     )
                                 )
                             },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.weight(1f)
                         )
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 2.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(formatMs(currentProg), color = TextPrimary, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
-                            Text(formatMs(currentDur), color = UnselectedWhite, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
-                        }
+                        Text(
+                            text = formatMs(currentDur),
+                            color = UnselectedWhite,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.width(42.dp),
+                            textAlign = TextAlign.Center
+                        )
                     }
 
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    // Action media buttons row (Shuffle, Prev, Play, Next, Repeat - flat, clean style)
+                    // Action media buttons row (Shuffle, Prev, Play, Next, Repeat)
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 2.dp),
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Shuffle icon (flat)
                         IconButton(
                             onClick = { viewModel.setShuffle(!isShuffle) },
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(34.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Shuffle,
                                 contentDescription = "Acak",
                                 tint = if (isShuffle) PrimaryGold else TextPrimary,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
 
-                        // Skip previous icon (flat)
                         IconButton(
                             onClick = { viewModel.playPreviousTrack() },
-                            modifier = Modifier.size(40.dp)
+                            modifier = Modifier.size(38.dp)
                         ) {
-                            Icon(Icons.Default.SkipPrevious, contentDescription = "Sebelumnya", tint = TextPrimary, modifier = Modifier.size(26.dp))
+                            Icon(Icons.Default.SkipPrevious, contentDescription = "Sebelumnya", tint = TextPrimary, modifier = Modifier.size(24.dp))
                         }
 
-                        // Play/Pause circular container (Theme Primary Color)
                         Box(
                             modifier = Modifier
-                                .size(50.dp)
+                                .size(46.dp)
                                 .clip(CircleShape)
                                 .background(PrimaryGold)
-                                .border(1.5.dp, PrimaryGold.copy(alpha = 0.6f), CircleShape)
                                 .clickable { viewModel.togglePlayPause() },
                             contentAlignment = Alignment.Center
                         ) {
@@ -3444,36 +3577,34 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                                 contentDescription = "Mainkan/Jeda",
                                 tint = Color(0xFF101014),
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(26.dp)
                             )
                         }
 
-                        // Skip next icon (flat)
                         IconButton(
                             onClick = { viewModel.playNextTrack() },
-                            modifier = Modifier.size(40.dp)
+                            modifier = Modifier.size(38.dp)
                         ) {
-                            Icon(Icons.Default.SkipNext, contentDescription = "Selanjutnya", tint = TextPrimary, modifier = Modifier.size(26.dp))
+                            Icon(Icons.Default.SkipNext, contentDescription = "Selanjutnya", tint = TextPrimary, modifier = Modifier.size(24.dp))
                         }
 
-                        // Standard Repeat Mode button (flat)
                         IconButton(
                             onClick = { viewModel.toggleRepeatMode() },
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(34.dp)
                         ) {
                             if (repeatMode == 1) {
                                 Icon(
                                     imageVector = Icons.Default.RepeatOne,
                                     contentDescription = "Looping Satu Lagu",
                                     tint = PrimaryGold,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(18.dp)
                                 )
                             } else {
                                 Icon(
                                     imageVector = Icons.Default.Repeat,
                                     contentDescription = "Looping Semua Lagu",
                                     tint = if (repeatMode == 2) PrimaryGold else TextPrimary.copy(alpha = 0.65f),
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         }
@@ -3598,53 +3729,76 @@ fun PlayerScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
             )
         }
 
-        // Speed dialog
+        // Speed dialog (Ultra simple: no title, no close button, 1 row preset grid, small progress bar with round slider thumb below)
         if (showSpeedDialog) {
             AlertDialog(
                 onDismissRequest = { showSpeedDialog = false },
-                title = {
-                    Text(
-                        "TEMPO SPEED CONTROL",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = PrimaryGold
-                    )
-                },
+                confirmButton = {},
+                dismissButton = {},
                 text = {
                     Column(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        val speeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("KECEPATAN TEMPO", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = TextPrimary)
-                            Text("${playbackSpeed}x", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = AccentTeal)
+                            speeds.forEach { spd ->
+                                val isSelected = kotlin.math.abs(playbackSpeed - spd) < 0.05f
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isSelected) PrimaryGold else DividerColor.copy(alpha = 0.35f))
+                                        .clickable { viewModel.setTempo(spd) }
+                                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "${spd}x",
+                                        color = if (isSelected) Color(0xFF101014) else TextPrimary,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
                         Slider(
                             value = playbackSpeed,
                             onValueChange = { viewModel.setTempo(it) },
                             valueRange = 0.5f..2.0f,
-                            steps = 5,
                             colors = SliderDefaults.colors(
-                                activeTrackColor = AccentTeal,
-                                inactiveTrackColor = DividerColor,
-                                thumbColor = AccentTeal
+                                activeTrackColor = PrimaryGold,
+                                inactiveTrackColor = DividerColor.copy(alpha = 0.5f),
+                                thumbColor = PrimaryGold
                             ),
+                            thumb = {
+                                Box(
+                                    modifier = Modifier
+                                        .size(14.dp)
+                                        .background(PrimaryGold, CircleShape)
+                                        .border(1.5.dp, if (IsDarkTheme) Color.White else Color(0xFF101014), CircleShape)
+                                )
+                            },
+                            track = { sliderState ->
+                                SliderDefaults.Track(
+                                    sliderState = sliderState,
+                                    modifier = Modifier.height(3.dp),
+                                    colors = SliderDefaults.colors(
+                                        activeTrackColor = PrimaryGold,
+                                        inactiveTrackColor = DividerColor.copy(alpha = 0.5f)
+                                    )
+                                )
+                            },
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
                 },
-                confirmButton = {
-                    TextButton(onClick = { showSpeedDialog = false }) {
-                        Text("Selesai", color = PrimaryGold, fontWeight = FontWeight.Bold)
-                    }
-                },
-                containerColor = CardBackground,
-                iconContentColor = PrimaryGold
+                containerColor = CardBackground
             )
         }
 
@@ -4384,13 +4538,16 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
     val videoPlaybackSpeed by viewModel.videoPlaybackSpeed.collectAsStateWithLifecycle()
     val videoProgress by viewModel.videoProgress.collectAsStateWithLifecycle()
     val videoDuration by viewModel.videoDuration.collectAsStateWithLifecycle()
+    val videoAbRepeatActive by viewModel.videoAbRepeatActive.collectAsStateWithLifecycle()
+    val videoPointA by viewModel.videoPointA.collectAsStateWithLifecycle()
+    val videoPointB by viewModel.videoPointB.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
 
     var areControlsVisible by remember { mutableStateOf(true) }
     var interactionTick by remember { mutableStateOf(0) }
     var showSpeedDialog by remember { mutableStateOf(false) }
-    var showHeaderVolumeSlider by remember { mutableStateOf(false) }
+    var showVideoAbRepeatDialog by remember { mutableStateOf(false) }
 
     var isLockWarningVisible by remember { mutableStateOf(true) }
     var lockInteractionTick by remember { mutableStateOf(0) }
@@ -4459,118 +4616,193 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
         }
     }
 
-    // Speed Selection Dialog with extensive slow motion presets
+    // Speed Selection Dialog (Ultra simple: no title, no close button, 1 row preset grid, small progress bar with round slider thumb below)
     if (showSpeedDialog) {
         AlertDialog(
             onDismissRequest = { showSpeedDialog = false },
+            confirmButton = {},
+            dismissButton = {},
             containerColor = CardBackground,
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Speed, contentDescription = null, tint = PrimaryGold, modifier = Modifier.size(24.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Kecepatan Putar Video", color = PrimaryGold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                }
-            },
             text = {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = "Pilih preset kecepatan lambat/cepat atau sesuaikan slider:",
-                        color = UnselectedWhite,
-                        fontSize = 12.sp
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Preset Speed Buttons with 0.1x and 0.25x slow motion
-                    val presets = listOf(
-                        0.1f to "0.1x (Super Lambat)",
-                        0.25f to "0.25x (Sangat Lambat)",
-                        0.5f to "0.5x (Lambat)",
-                        0.75f to "0.75x (Sedang)",
-                        1.0f to "1.0x (Normal)",
-                        1.25f to "1.25x (Cepat)",
-                        1.5f to "1.5x (Lebih Cepat)",
-                        2.0f to "2.0x (Sangat Cepat)",
-                        3.0f to "3.0x (Maksimal)"
-                    )
-
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        presets.chunked(2).forEach { rowPresets ->
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                rowPresets.forEach { (speed, label) ->
-                                    val isSelected = (videoPlaybackSpeed - speed).let { kotlin.math.abs(it) < 0.04f }
-                                    OutlinedButton(
-                                        onClick = {
-                                            viewModel.setVideoPlaybackSpeed(speed)
-                                        },
-                                        modifier = Modifier.weight(1f),
-                                        colors = ButtonDefaults.outlinedButtonColors(
-                                            containerColor = if (isSelected) AccentTeal.copy(alpha = 0.25f) else Color.Transparent,
-                                            contentColor = if (isSelected) AccentTeal else TextPrimary
-                                        ),
-                                        border = androidx.compose.foundation.BorderStroke(
-                                            1.dp,
-                                            if (isSelected) AccentTeal else DividerColor
-                                        ),
-                                        shape = RoundedCornerShape(10.dp),
-                                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
-                                    ) {
-                                        Text(
-                                            label,
-                                            fontSize = 10.5.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                            maxLines = 1
-                                        )
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    val presets = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        presets.forEach { speed ->
+                            val isSelected = (videoPlaybackSpeed - speed).let { kotlin.math.abs(it) < 0.04f }
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) PrimaryGold else DividerColor.copy(alpha = 0.35f))
+                                    .clickable {
+                                        viewModel.setVideoPlaybackSpeed(speed)
                                     }
-                                }
-                                if (rowPresets.size == 1) {
-                                    Spacer(modifier = Modifier.weight(1f))
-                                }
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "${speed}x",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) Color(0xFF101014) else TextPrimary
+                                )
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
-                    HorizontalDivider(color = DividerColor.copy(alpha = 0.4f))
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                    // Slider for granular speed adjustment from 0.1x to 3.0x
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Kustom Kecepatan:", color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        Text(
-                            "%.2fx".format(videoPlaybackSpeed),
-                            color = PrimaryGold,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.ExtraBold
-                        )
-                    }
                     Slider(
                         value = videoPlaybackSpeed,
                         onValueChange = { viewModel.setVideoPlaybackSpeed(it) },
                         valueRange = 0.1f..3.0f,
                         colors = SliderDefaults.colors(
                             activeTrackColor = PrimaryGold,
-                            inactiveTrackColor = DividerColor,
+                            inactiveTrackColor = DividerColor.copy(alpha = 0.5f),
                             thumbColor = PrimaryGold
                         ),
+                        thumb = {
+                            Box(
+                                modifier = Modifier
+                                    .size(14.dp)
+                                    .background(PrimaryGold, CircleShape)
+                                    .border(1.5.dp, if (IsDarkTheme) Color.White else Color(0xFF101014), CircleShape)
+                            )
+                        },
+                        track = { sliderState ->
+                            SliderDefaults.Track(
+                                sliderState = sliderState,
+                                modifier = Modifier.height(3.dp),
+                                colors = SliderDefaults.colors(
+                                    activeTrackColor = PrimaryGold,
+                                    inactiveTrackColor = DividerColor.copy(alpha = 0.5f)
+                                )
+                            )
+                        },
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
+            }
+        )
+    }
+
+    // Video A-B Repeat Dialog
+    if (showVideoAbRepeatDialog) {
+        AlertDialog(
+            onDismissRequest = { showVideoAbRepeatDialog = false },
+            title = { Text("PENGULANGAN SEGMEN A-B (VIDEO)", color = PrimaryGold, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Ulangi bagian video terus menerus antara titik A dan titik B.",
+                        color = UnselectedWhite,
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceAround
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                            Text("TITIK A", color = UnselectedWhite, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = DividerColor.copy(alpha = 0.5f)),
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            ) {
+                                Box(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+                                    Text(
+                                        text = videoPointA?.let { formatMs(it) } ?: "Belum Atur",
+                                        color = if (videoPointA != null) AccentTeal else UnselectedWhite,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.ExtraBold
+                                    )
+                                }
+                            }
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                            Text("TITIK B", color = UnselectedWhite, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = DividerColor.copy(alpha = 0.5f)),
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            ) {
+                                Box(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+                                    Text(
+                                        text = videoPointB?.let { formatMs(it) } ?: "Belum Atur",
+                                        color = if (videoPointB != null) PrimaryGold else UnselectedWhite,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.ExtraBold
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (videoAbRepeatActive) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(AccentTeal.copy(alpha = 0.2f))
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text("STATUS: PENGULANGAN SEGMEN AKTIF", color = AccentTeal, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = { viewModel.setVideoPointA() },
+                            colors = ButtonDefaults.buttonColors(containerColor = AccentTeal),
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("Set Titik A", color = Color(0xFF101014), fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                        }
+
+                        Button(
+                            onClick = { viewModel.setVideoPointB() },
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryGold),
+                            enabled = videoPointA != null,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("Set Titik B", color = Color(0xFF101014), fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                        }
+                    }
+
+                    Button(
+                        onClick = { viewModel.clearVideoAbRepeat() },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.8f)),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Reset Loop A-B", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                }
             },
             confirmButton = {
-                Button(
-                    onClick = { showSpeedDialog = false },
-                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryGold)
-                ) {
-                    Text("Tutup", color = Color(0xFF101014), fontWeight = FontWeight.Bold)
+                TextButton(onClick = { showVideoAbRepeatDialog = false }) {
+                    Text("Selesai", color = PrimaryGold, fontWeight = FontWeight.Bold)
                 }
-            }
+            },
+            containerColor = CardBackground,
+            iconContentColor = PrimaryGold
         )
     }
 
@@ -4645,11 +4877,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
             ) {
-                if (showHeaderVolumeSlider) {
-                    showHeaderVolumeSlider = false
-                } else {
-                    areControlsVisible = !areControlsVisible
-                }
+                areControlsVisible = !areControlsVisible
                 interactionTick++
             }
     ) {
@@ -4723,7 +4951,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                 Box(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    // Top Bar: Row 1 (File Name Bar), Row 2 (Quick Actions Bar: Volume, Acak, Rotasi, Kecepatan, Kunci), Row 3 (Expandable Volume Slider)
+                    // Top Bar: Row 1 (File Name Bar), Row 2 (Quick Actions Bar: A-B, Acak, Rotasi, Rasio, Kecepatan, Kunci)
                     // Zero padding/margins so it's always flush and visible at the top (only hidden in fullscreen)
                     Column(
                         modifier = Modifier
@@ -4731,7 +4959,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                             .fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(0.dp)
                     ) {
-                        // ROW 1: Bar Nama File & Menu (Flush edge-to-edge top header)
+                        // ROW 1: Bar Nama File & Menu (Flush edge-to-edge top header, title aligned with menu icon)
                         Surface(
                             color = HeaderBackground,
                             tonalElevation = 2.dp,
@@ -4751,40 +4979,39 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                IconButton(
-                                    onClick = {
-                                        interactionTick++
-                                        onOpenDrawer()
-                                    },
-                                    modifier = Modifier.size(36.dp)
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(Icons.Default.Menu, contentDescription = "Menu Slider", tint = PrimaryGold, modifier = Modifier.size(22.dp))
-                                }
-
-                                // File Name / Track Title
-                                Column(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .padding(horizontal = 8.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Text(
-                                        text = track.title,
-                                        color = TextPrimary,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 13.sp,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        textAlign = TextAlign.Center
-                                    )
-                                    Text(
-                                        text = if (track.artist.isNotBlank() && track.artist != "<unknown>") track.artist else "Video • ${track.format}",
-                                        color = PrimaryGold,
-                                        fontSize = 10.5.sp,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        textAlign = TextAlign.Center
-                                    )
+                                    IconButton(
+                                        onClick = {
+                                            interactionTick++
+                                            onOpenDrawer()
+                                        },
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(Icons.Default.Menu, contentDescription = "Menu Slider", tint = PrimaryGold, modifier = Modifier.size(22.dp))
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Column(
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Text(
+                                            text = track.title,
+                                            color = TextPrimary,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = if (track.artist.isNotBlank() && track.artist != "<unknown>") track.artist else "Video • ${track.format}",
+                                            color = PrimaryGold,
+                                            fontSize = 10.5.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
                                 }
 
                                 // Right Action Buttons: List & Folder
@@ -4812,7 +5039,7 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                             }
                         }
 
-                        // ROW 2: Bar Baru di Bawah Nama File (Volume, Acak, Rotasi, Kecepatan, Kunci - Flush bar)
+                        // ROW 2: Bar Aksi Cepat (A-B, Acak, Rotasi, Rasio, Kecepatan, Kunci - Flush bar)
                         Surface(
                             color = CardBackground,
                             modifier = Modifier
@@ -4830,20 +5057,28 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 horizontalArrangement = Arrangement.SpaceEvenly,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // 1. Icon Volume (Klik muncul garis volume)
+                                // 1. Tombol A-B Repeat (Ganti Progress Bar Volume)
                                 IconButton(
                                     onClick = {
                                         interactionTick++
-                                        showHeaderVolumeSlider = !showHeaderVolumeSlider
+                                        showVideoAbRepeatDialog = true
                                     },
                                     modifier = Modifier.size(36.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = if (videoVolume == 0f) Icons.Default.VolumeOff else if (videoVolume < 0.5f) Icons.Default.VolumeDown else Icons.Default.VolumeUp,
-                                        contentDescription = "Pengaturan Volume",
-                                        tint = if (showHeaderVolumeSlider) PrimaryGold else TextPrimary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .size(26.dp)
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(if (videoAbRepeatActive) PrimaryGold else DividerColor.copy(alpha = 0.3f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            "A-B",
+                                            color = if (videoAbRepeatActive) Color(0xFF101014) else TextPrimary,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Black
+                                        )
+                                    }
                                 }
 
                                 // 2. Icon Acak (Shuffle Video)
@@ -4952,266 +5187,192 @@ fun VideoScreen(viewModel: MediaViewModel, onOpenDrawer: () -> Unit = {}) {
                                 }
                             }
                         }
-
-                        // ROW 3: Expandable Header Volume Slider (Circular Thumb & Thin 3dp Track)
-                        AnimatedVisibility(
-                            visible = showHeaderVolumeSlider,
-                            enter = expandVertically() + fadeIn(),
-                            exit = shrinkVertically() + fadeOut()
-                        ) {
-                            Surface(
-                                color = CardBackground,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .border(0.5.dp, PrimaryGold.copy(alpha = 0.45f))
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 14.dp, vertical = 6.dp)
-                                        .clickable(
-                                            interactionSource = remember { MutableInteractionSource() },
-                                            indication = null
-                                        ) { interactionTick++ }
-                                ) {
-                                    IconButton(
-                                        onClick = {
-                                            interactionTick++
-                                            if (videoVolume > 0f) {
-                                                viewModel.setVideoVolume(0f)
-                                            } else {
-                                                viewModel.setVideoVolume(1f)
-                                            }
-                                        },
-                                        modifier = Modifier.size(32.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = if (videoVolume == 0f) Icons.Default.VolumeMute else Icons.Default.VolumeUp,
-                                            contentDescription = "Mute/Unmute",
-                                            tint = PrimaryGold,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Slider(
-                                        value = videoVolume,
-                                        onValueChange = {
-                                            interactionTick++
-                                            viewModel.setVideoVolume(it)
-                                        },
-                                        valueRange = 0f..1f,
-                                        colors = SliderDefaults.colors(
-                                            activeTrackColor = PrimaryGold,
-                                            inactiveTrackColor = DividerColor.copy(alpha = 0.5f),
-                                            thumbColor = PrimaryGold
-                                        ),
-                                        thumb = {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(12.dp)
-                                                    .background(PrimaryGold, CircleShape)
-                                                    .border(1.5.dp, if (IsDarkTheme) Color.White else Color(0xFF101014), CircleShape)
-                                            )
-                                        },
-                                        track = { sliderState ->
-                                            SliderDefaults.Track(
-                                                sliderState = sliderState,
-                                                modifier = Modifier.height(3.dp),
-                                                colors = SliderDefaults.colors(
-                                                    activeTrackColor = PrimaryGold,
-                                                    inactiveTrackColor = DividerColor.copy(alpha = 0.5f)
-                                                )
-                                            )
-                                        },
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        "${(videoVolume * 100).toInt()}%",
-                                        color = TextPrimary,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.ExtraBold
-                                    )
-                                }
-                            }
-                        }
                     }
 
-                    // COMPACT BOTTOM PLAYER BAR & CONTROLS (Thinner bar, rounded thumb, matching audio console styling)
-                    Card(
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = CardBackground),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    // COMPACT BOTTOM PLAYER BAR & CONTROLS (Flush edge-to-edge, reduced height, time aligned left & right of slider)
+                    Surface(
+                        shape = RectangleShape,
+                        color = CardBackground,
+                        shadowElevation = 4.dp,
+                        tonalElevation = 2.dp,
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
-                            .padding(horizontal = 10.dp, vertical = 8.dp)
-                            .border(1.dp, DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f), RoundedCornerShape(20.dp))
+                            .border(0.5.dp, DividerColor.copy(alpha = if (IsDarkTheme) 0.35f else 0.45f))
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 10.dp, vertical = 8.dp)
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = null
                                 ) { interactionTick++ },
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                        // Thinner Progress Seekbar Slider with Rounded Circle Thumb
-                        val currentDur = if (videoDuration > 0) videoDuration else track.duration.coerceAtLeast(1L)
-                        val currentProg = videoProgress.coerceIn(0L, currentDur)
+                            val currentDur = if (videoDuration > 0) videoDuration else track.duration.coerceAtLeast(1L)
+                            val currentProg = videoProgress.coerceIn(0L, currentDur)
 
-                        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp)) {
-                            Slider(
-                                value = currentProg.toFloat(),
-                                onValueChange = {
-                                    interactionTick++
-                                    viewModel.seekVideoTo(it.toLong())
-                                },
-                                valueRange = 0f..currentDur.toFloat(),
-                                colors = SliderDefaults.colors(
-                                    activeTrackColor = PrimaryGold,
-                                    inactiveTrackColor = DividerColor.copy(alpha = 0.5f),
-                                    thumbColor = PrimaryGold
-                                ),
-                                thumb = {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(12.dp)
-                                            .background(PrimaryGold, CircleShape)
-                                            .border(1.5.dp, if (IsDarkTheme) Color.White else Color(0xFF101014), CircleShape)
-                                    )
-                                },
-                                track = { sliderState ->
-                                    SliderDefaults.Track(
-                                        sliderState = sliderState,
-                                        modifier = Modifier.height(3.dp),
-                                        colors = SliderDefaults.colors(
-                                            activeTrackColor = PrimaryGold,
-                                            inactiveTrackColor = DividerColor.copy(alpha = 0.5f)
-                                        )
-                                    )
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                            // Thinner Progress Seekbar Slider with Left & Right Time labels aligned
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 2.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                    .padding(horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(formatMs(currentProg), color = TextPrimary, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
-                                Text(formatMs(currentDur), color = UnselectedWhite, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(1.dp))
-
-                        // Main Media Buttons Row (Repeat, -10s, Prev, Play/Pause, Next, +10s, Portrait-Aware Fullscreen)
-                        Row(
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            // Repeat / Loop Video Toggle
-                            IconButton(onClick = {
-                                interactionTick++
-                                viewModel.toggleVideoRepeatMode()
-                            }) {
-                                Icon(
-                                    imageVector = if (videoRepeatMode) Icons.Default.RepeatOne else Icons.Default.Repeat,
-                                    contentDescription = "Ulang Video",
-                                    tint = if (videoRepeatMode) PrimaryGold else TextPrimary,
-                                    modifier = Modifier.size(22.dp)
+                                Text(
+                                    text = formatMs(currentProg),
+                                    color = TextPrimary,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.width(42.dp),
+                                    textAlign = TextAlign.Center
                                 )
-                            }
-
-                            // Rewind 10 Seconds
-                            IconButton(onClick = {
-                                interactionTick++
-                                viewModel.seekVideoRelative(-10000L)
-                            }) {
-                                Icon(Icons.Default.Replay10, contentDescription = "Mundur 10 Detik", tint = TextPrimary, modifier = Modifier.size(24.dp))
-                            }
-
-                            // Previous Video
-                            IconButton(onClick = {
-                                interactionTick++
-                                viewModel.playPreviousVideo()
-                            }) {
-                                Icon(Icons.Default.SkipPrevious, contentDescription = "Video Sebelumnya", tint = TextPrimary, modifier = Modifier.size(28.dp))
-                            }
-
-                            // Play / Pause Circular Center Button (Theme Primary Color)
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(CircleShape)
-                                    .background(PrimaryGold)
-                                    .border(1.5.dp, PrimaryGold.copy(alpha = 0.6f), CircleShape)
-                                    .clickable {
+                                Slider(
+                                    value = currentProg.toFloat(),
+                                    onValueChange = {
                                         interactionTick++
-                                        viewModel.toggleVideoPlayPause()
+                                        viewModel.seekVideoTo(it.toLong())
                                     },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = if (isVideoPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = "Main/Jeda",
-                                    tint = Color(0xFF101014),
-                                    modifier = Modifier.size(28.dp)
+                                    valueRange = 0f..currentDur.toFloat(),
+                                    colors = SliderDefaults.colors(
+                                        activeTrackColor = PrimaryGold,
+                                        inactiveTrackColor = DividerColor.copy(alpha = 0.5f),
+                                        thumbColor = PrimaryGold
+                                    ),
+                                    thumb = {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(12.dp)
+                                                .background(PrimaryGold, CircleShape)
+                                                .border(1.5.dp, if (IsDarkTheme) Color.White else Color(0xFF101014), CircleShape)
+                                        )
+                                    },
+                                    track = { sliderState ->
+                                        SliderDefaults.Track(
+                                            sliderState = sliderState,
+                                            modifier = Modifier.height(3.dp),
+                                            colors = SliderDefaults.colors(
+                                                activeTrackColor = PrimaryGold,
+                                                inactiveTrackColor = DividerColor.copy(alpha = 0.5f)
+                                            )
+                                        )
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text(
+                                    text = formatMs(currentDur),
+                                    color = UnselectedWhite,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.width(42.dp),
+                                    textAlign = TextAlign.Center
                                 )
                             }
 
-                            // Next Video
-                            IconButton(onClick = {
-                                interactionTick++
-                                viewModel.playNextVideo()
-                            }) {
-                                Icon(Icons.Default.SkipNext, contentDescription = "Video Selanjutnya", tint = TextPrimary, modifier = Modifier.size(28.dp))
-                            }
-
-                            // Forward 10 Seconds
-                            IconButton(onClick = {
-                                interactionTick++
-                                viewModel.seekVideoRelative(10000L)
-                            }) {
-                                Icon(Icons.Default.Forward10, contentDescription = "Maju 10 Detik", tint = TextPrimary, modifier = Modifier.size(24.dp))
-                            }
-
-                            // Responsive Fullscreen & Video Aspect Ratio Fit Button
-                            IconButton(
-                                onClick = {
+                            // Main Media Buttons Row (Repeat, -10s, Prev, Play/Pause, Next, +10s, Portrait-Aware Fullscreen)
+                            Row(
+                                horizontalArrangement = Arrangement.SpaceEvenly,
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                // Repeat / Loop Video Toggle
+                                IconButton(onClick = {
                                     interactionTick++
-                                    val newFullscreen = !viewModel.isVideoFullscreen
-                                    viewModel.isVideoFullscreen = newFullscreen
-                                    activity?.let { act ->
-                                        val window = act.window
-                                        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
-                                        if (newFullscreen) {
-                                            insetsController.hide(WindowInsetsCompat.Type.systemBars())
-                                            insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                                            act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_USER
-                                            Toast.makeText(context, "Layar Penuh • Rasio: ${viewModel.videoScaleMode.value}", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            insetsController.show(WindowInsetsCompat.Type.systemBars())
-                                            act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                                    viewModel.toggleVideoRepeatMode()
+                                }) {
+                                    Icon(
+                                        imageVector = if (videoRepeatMode) Icons.Default.RepeatOne else Icons.Default.Repeat,
+                                        contentDescription = "Ulang Video",
+                                        tint = if (videoRepeatMode) PrimaryGold else TextPrimary,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+
+                                // Rewind 10 Seconds
+                                IconButton(onClick = {
+                                    interactionTick++
+                                    viewModel.seekVideoRelative(-10000L)
+                                }) {
+                                    Icon(Icons.Default.Replay10, contentDescription = "Mundur 10 Detik", tint = TextPrimary, modifier = Modifier.size(24.dp))
+                                }
+
+                                // Previous Video
+                                IconButton(onClick = {
+                                    interactionTick++
+                                    viewModel.playPreviousVideo()
+                                }) {
+                                    Icon(Icons.Default.SkipPrevious, contentDescription = "Video Sebelumnya", tint = TextPrimary, modifier = Modifier.size(28.dp))
+                                }
+
+                                // Play / Pause Circular Center Button (Theme Primary Color)
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(CircleShape)
+                                        .background(PrimaryGold)
+                                        .border(1.5.dp, PrimaryGold.copy(alpha = 0.6f), CircleShape)
+                                        .clickable {
+                                            interactionTick++
+                                            viewModel.toggleVideoPlayPause()
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = if (isVideoPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                        contentDescription = "Main/Jeda",
+                                        tint = Color(0xFF101014),
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                }
+
+                                // Next Video
+                                IconButton(onClick = {
+                                    interactionTick++
+                                    viewModel.playNextVideo()
+                                }) {
+                                    Icon(Icons.Default.SkipNext, contentDescription = "Video Selanjutnya", tint = TextPrimary, modifier = Modifier.size(28.dp))
+                                }
+
+                                // Forward 10 Seconds
+                                IconButton(onClick = {
+                                    interactionTick++
+                                    viewModel.seekVideoRelative(10000L)
+                                }) {
+                                    Icon(Icons.Default.Forward10, contentDescription = "Maju 10 Detik", tint = TextPrimary, modifier = Modifier.size(24.dp))
+                                }
+
+                                // Responsive Fullscreen & Video Aspect Ratio Fit Button
+                                IconButton(
+                                    onClick = {
+                                        interactionTick++
+                                        val newFullscreen = !viewModel.isVideoFullscreen
+                                        viewModel.isVideoFullscreen = newFullscreen
+                                        activity?.let { act ->
+                                            val window = act.window
+                                            val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+                                            if (newFullscreen) {
+                                                insetsController.hide(WindowInsetsCompat.Type.systemBars())
+                                                insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                                                act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_USER
+                                                Toast.makeText(context, "Layar Penuh • Rasio: ${viewModel.videoScaleMode.value}", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                insetsController.show(WindowInsetsCompat.Type.systemBars())
+                                                act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                                            }
                                         }
                                     }
+                                ) {
+                                    Icon(
+                                        imageVector = if (viewModel.isVideoFullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                                        contentDescription = "Layar Penuh / Fit Rasio",
+                                        tint = PrimaryGold,
+                                        modifier = Modifier.size(24.dp)
+                                    )
                                 }
-                            ) {
-                                Icon(
-                                    imageVector = if (viewModel.isVideoFullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
-                                    contentDescription = "Layar Penuh / Fit Rasio",
-                                    tint = PrimaryGold,
-                                    modifier = Modifier.size(24.dp)
-                                )
                             }
                         }
                     }
-                }
                 }
             }
         }
